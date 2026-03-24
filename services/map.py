@@ -134,6 +134,19 @@ def handle_stop_mapping():
         print(f"  [SLAM] 结束建图失败: {e}")
 
 
+def handle_save_map():
+    """保存当前地图（调用 stop_mapping 完成保存）"""
+    global _is_mapping
+    try:
+        common.slam.stop_mapping()
+        _is_mapping = False
+        print("  [SLAM] 地图已保存")
+        publish_slam_state()
+        publish_maps_list()
+    except Exception as e:
+        print(f"  [SLAM] 保存地图失败: {e}")
+
+
 def publish_slam_state():
     """发布当前SLAM状态到 /humanoid/map/info"""
     resp = {"command": "slam_state", "data": {"is_mapping": _is_mapping}}
@@ -202,6 +215,8 @@ def handle_control(payload):
         handle_start_mapping()
     elif cmd == "stop_mapping":
         handle_stop_mapping()
+    elif cmd == "save_map":
+        handle_save_map()
     elif cmd == "read_maps":
         handle_read_maps()
     elif cmd == "switch_map":

@@ -14,13 +14,13 @@ export default {
 
         <!-- 右下角建图操作按钮 -->
         <div class="map-action-btns">
-            <button :class="['map-btn', 'map-btn-start', isMapping ? 'map-btn-active' : '']" @click="startMapping" :disabled="isMapping">
+            <button :class="['map-btn', 'map-btn-start', isMapping ? 'map-btn-active' : '']" @click="confirmStartMapping" :disabled="isMapping">
                 ▶ 开始扫图
             </button>
-            <button :class="['map-btn', 'map-btn-stop']" @click="stopMapping" :disabled="!isMapping">
+            <button :class="['map-btn', 'map-btn-stop']" @click="confirmStopMapping" :disabled="!isMapping">
                 ■ 结束扫图
             </button>
-            <button :class="['map-btn', 'map-btn-save']" @click="stopMapping" :disabled="!isMapping">
+            <button :class="['map-btn', 'map-btn-save']" @click="confirmSaveMap" :disabled="!isMapping">
                 💾 保存地图
             </button>
             <span class="map-mapping-status" v-if="isMapping">🔴 建图中...</span>
@@ -40,6 +40,22 @@ export default {
                 </span>
             </div>
         </div>
+
+        <!-- 操作确认弹窗 -->
+        <div v-if="confirmDialog.visible" class="save-overlay" @click.self="confirmDialog.visible = false">
+            <div class="save-dialog" style="width:360px;">
+                <h6 :style="{color: confirmDialog.color, marginBottom: '16px'}">
+                    {{ confirmDialog.icon }} {{ confirmDialog.title }}
+                </h6>
+                <div style="font-size:14px; color:#606266; margin-bottom:20px; text-align:center; line-height:1.6;">
+                    {{ confirmDialog.message }}
+                </div>
+                <div class="step-actions">
+                    <button class="nav-btn" @click="confirmDialog.visible = false">取消</button>
+                    <button class="nav-btn" :style="{background: confirmDialog.color, color:'#fff'}" @click="executeConfirm">确定</button>
+                </div>
+            </div>
+        </div>
     </div>
     `,
     data() {
@@ -56,7 +72,16 @@ export default {
             ctx: null,
             rafId: null,
             _onCloud: null,
-            _onMapInfo: null
+            _onMapInfo: null,
+            _pendingAction: null,
+            confirmDialog: {
+                visible: false,
+                title: '',
+                message: '',
+                icon: '',
+                color: '',
+                action: null
+            }
         };
     },
     mounted() {
@@ -114,13 +139,38 @@ export default {
         mqttClient.publishCloudControl('stop_cloud');
     },
     methods: {
+        _showConfirm(title, message, icon, color, action) {
+            this.confirmDialog = {
+                visible: true,
+                title, message, icon, color,
+                action
+            };
+        },
+        executeConfirm() {
+            const fn = this.confirmDialog.action;
+            this.confirmDialog.visible = false;
+            if (fn) fn.call(this);
+        },
+        confirmStartMapping() {
+            this._showConfirm('开始扫图', '确定要开始激光扫图建图吗？请确保机器人已在需要建图的区域。', '▶', '#67c23a', this.startMapping);
+        },
+        confirmStopMapping() {
+            this._showConfirm('结束扫图', '确定要结束扫图并停止建图吗？建图将在保存后停止。', '■', '#f56c6c', this.stopMapping);
+        },
+        confirmSaveMap() {
+            this._showConfirm('保存地图', '确定要保存当前地图吗？地图将被写入机器人系统。', '💾', '#e6a23c', this.saveMap);
+        },
         startMapping() {
             mqttClient.publishMapControl('start_mapping');
             console.log('[地图] 开始扫图');
         },
         stopMapping() {
             mqttClient.publishMapControl('stop_mapping');
-            console.log('[地图] 结束扫图并保存地图');
+            console.log('[地图] 结束扫图');
+        },
+        saveMap() {
+            mqttClient.publishMapControl('save_map');
+            console.log('[地图] 保存地图');
         },
         resizeCanvas() {
             const c = this.$refs.canvas;
