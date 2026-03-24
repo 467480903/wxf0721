@@ -31,8 +31,7 @@ export default {
                 <span v-else class="pv-idle">就绪</span>
             </div>
             <div class="program-actions">
-                <button v-if="isLoggedIn()" class="program-btn file-btn" @click="openFileList">文件</button>
-                <button class="program-btn read-btn" @click="readCode">读取代码</button>
+                <button class="program-btn file-btn" @click="openFileList">文件</button>
                 <button
                     class="program-btn run-btn"
                     :class="{ active: running }"
@@ -232,6 +231,7 @@ export default {
         mqttClient.addRuntimeStepCallback(this.onStep);
         mqttClient.addRuntimeCodesCallback(this.onCodes);
         mqttClient.addRuntimeProgramFilesCallback(this.onProgramFiles);
+        this.readCode();
     },
     beforeUnmount() {
         mqttClient.removeRuntimeStepCallback(this.onStep);
