@@ -9,13 +9,10 @@ import TeachCoords     from './teach-coords.js';
 import ProgramView     from './program-view.js';
 import MapView         from './map-view.js';
 import CameraView      from './camera-view.js';
-import DataCollection  from './data-collection.js';
-import ModelInference  from './model-inference.js';
 import DataJointsCoords from './data-joints-coords.js';
-import ModbusView       from './modbus-view.js';
+import SynchroView      from './synchro.js';
 import YoloInference   from './yolo-inference.js';
 import ChassisControl  from './chassis-control.js';
-import PlaceholderView from './placeholder-view.js';
 
 
 const App = {
@@ -40,7 +37,7 @@ const App = {
                 {
                     id: 'data', label: '数据', icon: '📊', children: [
                         { id: 'data_jc',      label: '关节/坐标' },
-                        { id: 'data_modbus',  label: 'Modbus' },
+                        { id: 'data_modbus',  label: '同步' },
                     ]
                 },
                 { id: 'program', label: '程序', icon: '📋' },
@@ -61,7 +58,7 @@ const App = {
             robotStatus: null   // 共享的机器人状态
         };
     },
-    components: { TeachJoints, TeachCoords, ProgramView, MapView, CameraView, DataCollection, ModelInference, DataJointsCoords, ModbusView, YoloInference, ChassisControl, PlaceholderView },
+    components: { TeachJoints, TeachCoords, ProgramView, MapView, CameraView, DataJointsCoords, SynchroView, YoloInference, ChassisControl },
     provide() {
         return {
             getUrdfViewer: () => this.urdfViewer,
@@ -74,17 +71,6 @@ const App = {
         visibleMenus() {
             if (this.isLoggedIn) return this.menus;
             return this.menus.filter(m => m.id !== 'map' && m.id !== 'camera');
-        },
-        // 当前菜单项的标题（用于占位组件）
-        currentTitle() {
-            for (const m of this.menus) {
-                if (m.id === this.currentMenu) return m.label;
-                if (m.children) {
-                    const child = m.children.find(c => c.id === this.currentMenu);
-                    if (child) return child.label;
-                }
-            }
-            return '';
         },
         // 导航栏右侧显示的页面标题
         navPageTitle() {
@@ -102,14 +88,6 @@ const App = {
                 'cam_yolo': 'YOLO 计算',
             };
             return titles[this.currentMenu] || '';
-        },
-        // 判断当前菜单是否为占位页面（非已实现的组件）
-        isPlaceholder() {
-            const implemented = [
-                'teach_joints', 'teach_coords', 'program',
-                'map_scan', 'map_chassis', 'cam_capture', 'cam_yolo', 'data_jc', 'data_modbus'
-            ];
-            return this.currentMenu && !implemented.includes(this.currentMenu);
         }
     },
     template: `
@@ -203,11 +181,8 @@ const App = {
             <!-- 数据 > 关节/坐标 -->
             <data-joints-coords v-if="currentMenu === 'data_jc'"></data-joints-coords>
 
-            <!-- 数据 > Modbus -->
-            <modbus-view      v-if="currentMenu === 'data_modbus'"></modbus-view>
-
-            <!-- 占位页面 -->
-            <placeholder-view :title="currentTitle" v-if="isPlaceholder"></placeholder-view>
+            <!-- 数据 > 同步 -->
+            <synchro-view      v-if="currentMenu === 'data_modbus'"></synchro-view>
         </main>
     </div>
     `,

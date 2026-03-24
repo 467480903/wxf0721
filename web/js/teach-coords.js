@@ -39,9 +39,9 @@ export default {
                 <h6 class="tc-hand-title">左手</h6>
                 <div class="coord-row" v-for="ax in axes" :key="'L_'+ax">
                     <span class="axis-label">{{ ax.toUpperCase() }}</span>
-                    <button class="minus" @click="step('left', ax, -stepSize)">−</button>
+                    <button class="minus" @click="step('left', ax, -stepFor(ax))">−</button>
                     <span class="val">{{ format(left[ax]) }}</span>
-                    <button class="plus"  @click="step('left', ax,  stepSize)">+</button>
+                    <button class="plus"  @click="step('left', ax,  stepFor(ax))">+</button>
                 </div>
                 <!-- 左手夹爪 -->
                 <div class="gripper-row">
@@ -56,9 +56,9 @@ export default {
                 <h6 class="tc-hand-title">右手</h6>
                 <div class="coord-row" v-for="ax in axes" :key="'R_'+ax">
                     <span class="axis-label">{{ ax.toUpperCase() }}</span>
-                    <button class="minus" @click="step('right', ax, -stepSize)">−</button>
+                    <button class="minus" @click="step('right', ax, -stepFor(ax))">−</button>
                     <span class="val">{{ format(right[ax]) }}</span>
-                    <button class="plus"  @click="step('right', ax,  stepSize)">+</button>
+                    <button class="plus"  @click="step('right', ax,  stepFor(ax))">+</button>
                 </div>
                 <!-- 右手夹爪 -->
                 <div class="gripper-row">
@@ -81,8 +81,13 @@ export default {
                 <span class="tc-info-item">
                     <span class="tc-info-label">步长</span>
                     <input type="number" v-model.number="stepSize" step="0.01" min="0.001" class="tc-step-input">
+                    <span class="tc-info-unit">(米)</span>
                 </span>
-                <span class="tc-info-desc">(XYZ:米, RX/RY/RZ:弧度)</span>
+                <span class="tc-info-item">
+                    <span class="tc-info-label">旋转步长</span>
+                    <input type="number" v-model.number="rotStepSize" step="0.01" min="0.001" class="tc-step-input">
+                    <span class="tc-info-unit">(弧度)</span>
+                </span>
                 <span class="tc-status">
                     <span class="tc-conn-dot"></span>
                     <span class="tc-conn-text">已连接实时状态</span>
@@ -121,6 +126,7 @@ export default {
     data() {
         return {
             stepSize: 0.02,
+            rotStepSize: 0.02,
             axes: ['x', 'y', 'z', 'rx', 'ry', 'rz'],
             left:  { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 },
             right: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 },
@@ -136,6 +142,10 @@ export default {
         };
     },
     methods: {
+        // 根据轴类型返回对应步长：XYZ 用 stepSize（米），RX/RY/RZ 用 rotStepSize（弧度）
+        stepFor(axis) {
+            return ['x', 'y', 'z'].includes(axis) ? this.stepSize : this.rotStepSize;
+        },
         step(side, axis, delta) {
             this[side][axis] += delta;
             // 发布 offset_move 命令
@@ -147,9 +157,10 @@ export default {
         // 发布末端相对移动命令
         publishOffset(side, axis, delta) {
             const isTranslation = ['x', 'y', 'z'].includes(axis);
-            const value_mm = isTranslation ? delta * 1000 : delta * 1000;
+            // 平移：米→毫米；旋转：弧度→度
+            const value = isTranslation ? delta * 1000 : delta * (180 / Math.PI);
             const key = side === 'left' ? 'l' + axis : 'r' + axis;
-            const data = { [key]: value_mm };
+            const data = { [key]: value };
             mqttClient.publishCommand('offset_move', data);
         },
         // 控制夹爪开合

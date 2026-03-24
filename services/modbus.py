@@ -180,6 +180,7 @@ def _publish_device(dev):
         common.publish(common.TOPIC_MODBUS_DATA, {
             "command": "modbus_data",
             "devices": [{
+                "name": dev.get("name", ""),
                 "ip": dev["ip"],
                 "port": dev["port"],
                 "read": read_result,
@@ -284,28 +285,36 @@ def load_config():
 # ═══════════════════════════════════════════════════════════
 
 def _read_device(dev):
-    """读取单个设备的所有 read/write holdings，返回结果字典"""
+    """读取单个设备的所有 read/write holdings，返回结果字典（含变量名称）"""
     client = ModbusTcpClient(dev["ip"], dev["port"])
     read_result = []
     write_result = []
+
+    # 地址 → 变量名称 映射（names 与 holdings 按索引对齐）
+    read_names = {addr: name for addr, name in zip(dev["read_holdings"], dev.get("read_names", []))}
+    write_names = {addr: name for addr, name in zip(dev["write_holdings"], dev.get("write_names", []))}
 
     for start, count in _group_continuous(dev["read_holdings"]):
         values = client.read_holding_registers(start, count)
         if values is not None:
             for i, v in enumerate(values):
-                read_result.append({"address": start + i, "value": v})
+                a = start + i
+                read_result.append({"address": a, "name": read_names.get(a, ""), "value": v})
         else:
-            for a in range(start, start + count):
-                read_result.append({"address": a, "value": None})
+            for i in range(count):
+                a = start + i
+                read_result.append({"address": a, "name": read_names.get(a, ""), "value": None})
 
     for start, count in _group_continuous(dev["write_holdings"]):
         values = client.read_holding_registers(start, count)
         if values is not None:
             for i, v in enumerate(values):
-                write_result.append({"address": start + i, "value": v})
+                a = start + i
+                write_result.append({"address": a, "name": write_names.get(a, ""), "value": v})
         else:
-            for a in range(start, start + count):
-                write_result.append({"address": a, "value": None})
+            for i in range(count):
+                a = start + i
+                write_result.append({"address": a, "name": write_names.get(a, ""), "value": None})
 
     read_result.sort(key=lambda x: x["address"])
     write_result.sort(key=lambda x: x["address"])
@@ -329,6 +338,7 @@ def read_and_publish():
                     db.synch_update_read(name, val)
 
             devices_data.append({
+                "name": dev.get("name", ""),
                 "ip": dev["ip"],
                 "port": dev["port"],
                 "read": read_result,

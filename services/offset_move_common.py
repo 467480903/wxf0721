@@ -46,12 +46,48 @@ class EndEffectorController:
         return [s0 * q0[i] + s1 * q1[i] for i in range(4)]
 
     @staticmethod
+    def euler_to_quaternion(rx_deg, ry_deg, rz_deg):
+        """欧拉角（度，ZYX 顺序：绕Z→Y→X）→ 四元数 [x, y, z, w]"""
+        rx = math.radians(rx_deg) / 2.0
+        ry = math.radians(ry_deg) / 2.0
+        rz = math.radians(rz_deg) / 2.0
+        cx, sx = math.cos(rx), math.sin(rx)
+        cy, sy = math.cos(ry), math.sin(ry)
+        cz, sz = math.cos(rz), math.sin(rz)
+        return [
+            sx * cy * cz - cx * sy * sz,  # x
+            cx * sy * cz + sx * cy * sz,  # y
+            cx * cy * sz - sx * sy * cz,  # z
+            cx * cy * cz + sx * sy * sz,  # w
+        ]
+
+    @staticmethod
+    def quaternion_multiply(q1, q2):
+        """四元数乘法 q1 * q2，格式 [x, y, z, w]"""
+        x1, y1, z1, w1 = q1
+        x2, y2, z2, w2 = q2
+        return [
+            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,  # x
+            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,  # y
+            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,  # z
+            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,  # w
+        ]
+
+    @staticmethod
     def distance(p1, p2):
         return math.sqrt(sum((a - b) ** 2 for a, b in zip(p1, p2)))
 
-    def _n_steps(self, start_pos, goal_pos):
+    def _n_steps(self, start_pos, goal_pos, start_quat=None, goal_quat=None):
+        """根据平移距离和旋转角度计算所需步数"""
         dist_cm = self.distance(start_pos, goal_pos) * 100.0
-        return max(int(math.ceil(dist_cm / MAX_STEP_CM)), 1)
+        steps = max(int(math.ceil(dist_cm / MAX_STEP_CM)), 1)
+        # 考虑旋转：计算四元数夹角，每 5° 至少 1 步
+        if start_quat and goal_quat:
+            dot = abs(sum(start_quat[i] * goal_quat[i] for i in range(4)))
+            dot = min(1.0, dot)
+            angle_deg = math.degrees(2.0 * math.acos(dot))
+            steps = max(steps, int(math.ceil(angle_deg / 0.3)))
+        return steps
 
     def _plan(self, start_pose, goal_pose, n_steps):
         """生成直线运动的轨迹点序列"""
@@ -133,29 +169,38 @@ class EndEffectorController:
 
     # ── 主流程 ───────────────────────────────────────────────
 
-    def adjust_arms_relative(self, offset_l=(0.0, 0.0, 0.0), offset_r=(0.0, 0.0, 0.0)) -> bool:
+    def adjust_arms_relative(self, offset_l=(0.0, 0.0, 0.0), offset_r=(0.0, 0.0, 0.0),
+                             rot_l=(0.0, 0.0, 0.0), rot_r=(0.0, 0.0, 0.0)) -> bool:
         """
-        分别设定左右臂的相对位移 (dx, dy, dz)，单位：米。
-        如果不动某只手，传入 (0.0, 0.0, 0.0) 即可。
+        分别设定左右臂的相对位移和旋转。
+
+        参数:
+          offset_l / offset_r : (dx, dy, dz) 平移偏移，单位：米
+          rot_l   / rot_r     : (rx, ry, rz) 旋转偏移，单位：度（ZYX顺序）
+        如果不动某只手，传入全零即可。
         """
         print("=" * 55)
         print(f"准备执行调整：")
-        print(f"  左臂偏移 (X, Y, Z): {offset_l}")
-        print(f"  右臂偏移 (X, Y, Z): {offset_r}")
+        print(f"  左臂偏移 (X,Y,Z): {offset_l}  旋转(RX,RY,RZ): {rot_l}")
+        print(f"  右臂偏移 (X,Y,Z): {offset_r}  旋转(RX,RY,RZ): {rot_r}")
         
         # 1. 获取当前状态
         status = self.robot.get_motion_control_status()
         start_l = self._find_pose(status, LEFT_NAME)
         start_r = self._find_pose(status, RIGHT_NAME)
 
-        # 2. 计算目标位姿
+        # 2. 计算目标位姿（平移 + 旋转）
+        # 旋转：将欧拉角增量转为四元数，左乘到当前姿态（世界坐标系下的旋转增量）
+        q_rot_l = self.euler_to_quaternion(*rot_l)
+        q_rot_r = self.euler_to_quaternion(*rot_r)
+
         target_l = {
             "position": [
                 start_l["position"][0] + offset_l[0],
                 start_l["position"][1] + offset_l[1],
                 start_l["position"][2] + offset_l[2]
             ],
-            "orientation": list(start_l["orientation"])
+            "orientation": self.quaternion_multiply(q_rot_l, start_l["orientation"])
         }
         
         target_r = {
@@ -164,17 +209,15 @@ class EndEffectorController:
                 start_r["position"][1] + offset_r[1],
                 start_r["position"][2] + offset_r[2]
             ],
-            "orientation": list(start_r["orientation"])
+            "orientation": self.quaternion_multiply(q_rot_r, start_r["orientation"])
         }
 
-        # 3. 规划轨迹
-        n_l = self._n_steps(start_l["position"], target_l["position"])
-        n_r = self._n_steps(start_r["position"], target_r["position"])
+        # 3. 规划轨迹（步数同时考虑平移和旋转）
+        n_l = self._n_steps(start_l["position"], target_l["position"],
+                           start_l["orientation"], target_l["orientation"])
+        n_r = self._n_steps(start_r["position"], target_r["position"],
+                           start_r["orientation"], target_r["orientation"])
         n_steps = max(n_l, n_r)
-        
-        if n_steps <= 1:
-            print("  目标位置与当前位置过近，无需移动。")
-            return True
 
         print(f"  规划步数: {n_steps} 步")
 
@@ -198,10 +241,12 @@ class EndEffectorController:
 #  统一入口：初始化 GDK → 执行偏移 → 释放 GDK
 # ═══════════════════════════════════════════════════════════════
 
-def run_offset(offset_l=(0.0, 0.0, 0.0), offset_r=(0.0, 0.0, 0.0)):
+def run_offset(offset_l=(0.0, 0.0, 0.0), offset_r=(0.0, 0.0, 0.0),
+               rot_l=(0.0, 0.0, 0.0), rot_r=(0.0, 0.0, 0.0)):
     """
     初始化 GDK，按给定偏移量执行双臂相对移动，最后释放 GDK。
     offset 参数格式为 (X偏移, Y偏移, Z偏移)，单位为 米。
+    rot   参数格式为 (RX, RY, RZ)，单位为 度（ZYX顺序）。
     坐标系规则： X+(向前)， Y+(向左)， Z+(向上)
     """
     if agibot_gdk.gdk_init() != agibot_gdk.GDKRes.kSuccess:
@@ -214,7 +259,8 @@ def run_offset(offset_l=(0.0, 0.0, 0.0), offset_r=(0.0, 0.0, 0.0)):
 
     try:
         controller = EndEffectorController(robot)
-        controller.adjust_arms_relative(offset_l=offset_l, offset_r=offset_r)
+        controller.adjust_arms_relative(offset_l=offset_l, offset_r=offset_r,
+                                        rot_l=rot_l, rot_r=rot_r)
     except Exception as e:
         print(f"[运行错误] {e}")
 

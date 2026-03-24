@@ -179,8 +179,9 @@ def on_message(client, userdata, msg):
         programs.handle_control(payload)
 
     elif topic == common.TOPIC_MODBUS_CONTROL:
-        # Modbus 读写命令（read/write）
+        # Modbus / S7 读写命令（read/write）— 同时路由给两个处理器
         modbus.handle_control(payload)
+        s7.handle_control(payload)
 
     elif topic == common.TOPIC_DATA_READ:
         # synch 数据读取（readData）

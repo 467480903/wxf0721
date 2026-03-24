@@ -7,3 +7,4 @@ python3.*
 lerobot/__pycache__/
 dds_view.*
 services/scene_control.*
+__pycache__/

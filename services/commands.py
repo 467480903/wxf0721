@@ -54,10 +54,12 @@ def handle_tts(data, msg=None):
 # ═══════════════════════════════════════════════════════════
 
 def handle_offset_move(data, msg=None):
-    """末端执行器相对移动
+    """末端执行器相对移动（平移 + 旋转）
 
-    data 格式: {"lx": 20, "ly": 0, "lz": 0, "rx": 0, "ry": 0, "rz": 0}
-    数值单位：毫米，内部转换为米
+    data 格式: {"lx": 20, "ly": 0, "lz": 0, "rx": 0, "ry": 0, "rz": 0,
+                "lrx": 0, "lry": 0, "lrz": 0, "rrx": 0, "rry": 0, "rrz": 0}
+    平移 lx~lz / rx~rz 单位：毫米，内部转换为米
+    旋转 lrx~lrz / rrx~rrz 单位：度（ZYX顺序）
     """
     # 毫米 → 米
     offset_l = (
@@ -70,11 +72,24 @@ def handle_offset_move(data, msg=None):
         data.get("ry", 0.0) / 1000.0,
         data.get("rz", 0.0) / 1000.0,
     )
-    print(f"  左臂偏移 (mm): lx={data.get('lx', 0)}, ly={data.get('ly', 0)}, lz={data.get('lz', 0)}")
-    print(f"  右臂偏移 (mm): rx={data.get('rx', 0)}, ry={data.get('ry', 0)}, rz={data.get('rz', 0)}")
-    print(f"  换算 (m): L={offset_l}, R={offset_r}")
+    # 旋转（度）
+    rot_l = (
+        data.get("lrx", 0.0),
+        data.get("lry", 0.0),
+        data.get("lrz", 0.0),
+    )
+    rot_r = (
+        data.get("rrx", 0.0),
+        data.get("rry", 0.0),
+        data.get("rrz", 0.0),
+    )
+    print(f"  左臂偏移 (mm): lx={data.get('lx',0)}, ly={data.get('ly',0)}, lz={data.get('lz',0)}  旋转(°): lrx={rot_l[0]}, lry={rot_l[1]}, lrz={rot_l[2]}")
+    print(f"  右臂偏移 (mm): rx={data.get('rx',0)}, ry={data.get('ry',0)}, rz={data.get('rz',0)}  旋转(°): rrx={rot_r[0]}, rry={rot_r[1]}, rrz={rot_r[2]}")
     try:
-        common.ee_controller.adjust_arms_relative(offset_l=offset_l, offset_r=offset_r)
+        common.ee_controller.adjust_arms_relative(
+            offset_l=offset_l, offset_r=offset_r,
+            rot_l=rot_l, rot_r=rot_r,
+        )
         print("  末端移动完成")
     except Exception as e:
         print(f"  末端移动失败: {e}")
