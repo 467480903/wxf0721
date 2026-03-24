@@ -7,9 +7,10 @@ export default {
     name: 'TeachJoints',
     inject: ['getUrdfViewer', 'getRobotStatus'],
     template: `
-    <div class="panel teach-joints-panel">
-        <h5 class="teach-title">示教（角） · 关节角度</h5>
+    <div class="panel tj-panel">
+        <h5 class="tj-title">示教（角） · 关节角度</h5>
 
+        <div class="tj-content">
         <div class="teach-grid">
             <!-- 头部 -->
             <div class="joint-group joint-group-head">
@@ -66,25 +67,32 @@ export default {
                 </div>
             </div>
         </div>
+        </div>
 
-        <!-- 底部工具栏 -->
-        <div class="teach-toolbar">
-            <div class="toolbar-left">
-                <span class="tool-label">步长</span>
-                <input type="number" v-model.number="stepSize" step="0.5" min="0.1" class="step-input">
-                <span class="tool-unit">°</span>
-                <span class="conn-dot"></span>
-                <span class="conn-text">实时连接</span>
+        <!-- 底部操作栏：按钮组 + 右侧功能描述 -->
+        <div class="tj-actionbar">
+            <div class="tj-actions">
+                <button class="djc-btn djc-btn-read" @click="showSaveDialog = true">
+                    <span style="margin-right:4px;">💾</span> 保存
+                </button>
             </div>
-            <button class="save-btn" @click="showSaveDialog = true">
-                <span style="margin-right:4px;">💾</span> 保存
-            </button>
+            <div class="tj-info">
+                <span class="tj-info-item">
+                    <span class="tj-info-label">步长</span>
+                    <input type="number" v-model.number="stepSize" step="0.5" min="0.1" class="tj-step-input">
+                    <span class="tj-info-unit">°</span>
+                </span>
+                <span class="tj-status">
+                    <span class="tj-conn-dot"></span>
+                    <span class="tj-conn-text">实时连接</span>
+                </span>
+            </div>
         </div>
 
         <!-- 保存弹窗 -->
         <div v-if="showSaveDialog" class="save-overlay" @click.self="showSaveDialog = false">
             <div class="save-dialog">
-                <h6 style="color:#6cf; margin-bottom:16px;">保存关节角</h6>
+                <h6 style="color:#409eff; margin-bottom:16px;">保存关节角</h6>
 
                 <div class="form-row">
                     <label>名称</label>
@@ -93,7 +101,7 @@ export default {
                 </div>
 
                 <div style="margin-bottom:16px;">
-                    <label style="display:block; color:#b0b6c0; font-size:14px; margin-bottom:8px;">类型</label>
+                    <label style="display:block; color:#606266; font-size:14px; margin-bottom:8px;">类型</label>
                     <div class="radio-group">
                         <label v-for="t in saveTypes" :key="t">
                             <input type="radio" :value="t" v-model="saveType" /> {{ t }}

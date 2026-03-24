@@ -250,7 +250,7 @@ def publishing_loop():
                 if msg.get("chassis"):
                     c = msg["chassis"]
                     chassis_str = f", chassis=({c['x']:.2f},{c['y']:.2f},{c['yaw']:.2f})"
-                print(f"[状态] joints={len(msg['joints'])}个{chassis_str}")
+                # print(f"[状态] joints={len(msg['joints'])}个{chassis_str}")
             except Exception as e:
                 print(f"[状态] 发布失败: {e}")
 

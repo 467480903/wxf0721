@@ -46,9 +46,26 @@ export default {
             </div>
             <div class="djc-actions">
                 <button class="djc-btn djc-btn-read" @click="readData">读取</button>
-                <button class="djc-btn djc-btn-go" :disabled="!selectedItem" @click="goTo">到位</button>
-                <button class="djc-btn djc-btn-update" :disabled="!selectedItem" @click="updateData">更新</button>
-                <button class="djc-btn djc-btn-delete" :disabled="!selectedItem" @click="deleteData">删除</button>
+                <button class="djc-btn djc-btn-go" :disabled="!selectedItem" @click="confirmGoTo">到位</button>
+                <button class="djc-btn djc-btn-update" :disabled="!selectedItem" @click="confirmUpdate">更新</button>
+                <button class="djc-btn djc-btn-delete" :disabled="!selectedItem" @click="confirmDelete">删除</button>
+            </div>
+        </div>
+
+        <!-- 确认弹窗 -->
+        <div v-if="confirmDialog.visible" class="djc-overlay" @click.self="cancelConfirm">
+            <div class="djc-dialog">
+                <div class="djc-dialog-header">
+                    <span :class="['djc-dialog-icon', confirmDialog.iconClass]">{{ confirmDialog.icon }}</span>
+                    <span class="djc-dialog-title">{{ confirmDialog.title }}</span>
+                </div>
+                <div class="djc-dialog-body">
+                    {{ confirmDialog.message }}
+                </div>
+                <div class="djc-dialog-footer">
+                    <button class="djc-btn djc-btn-cancel" @click="cancelConfirm">取消</button>
+                    <button :class="['djc-btn', confirmDialog.confirmClass]" @click="executeConfirm">确定</button>
+                </div>
             </div>
         </div>
     </div>
@@ -57,6 +74,15 @@ export default {
         return {
             items: [],
             selectedIdx: -1,
+            confirmDialog: {
+                visible: false,
+                title: '',
+                message: '',
+                icon: '',
+                iconClass: '',
+                confirmClass: '',
+                action: null,
+            },
         };
     },
     computed: {
@@ -88,32 +114,75 @@ export default {
                 console.log('[数据] 收到', this.items.length, '条数据');
             }
         },
-        goTo() {
+        showConfirm(title, message, icon, iconClass, confirmClass, action) {
+            this.confirmDialog = {
+                visible: true,
+                title,
+                message,
+                icon,
+                iconClass,
+                confirmClass,
+                action,
+            };
+        },
+        cancelConfirm() {
+            this.confirmDialog.visible = false;
+            this.confirmDialog.action = null;
+        },
+        executeConfirm() {
+            if (this.confirmDialog.action) {
+                this.confirmDialog.action();
+            }
+            this.cancelConfirm();
+        },
+        confirmGoTo() {
+            const item = this.selectedItem;
+            if (!item) return;
+            const categoryName = item.category === 'joints' ? '关节' : '坐标';
+            this.showConfirm(
+                '确认到位',
+                `确定要让机器人运动到 ${categoryName}「${item.type}/${item.name}」吗？请确保周围环境安全。`,
+                '▶',
+                'djc-icon-go',
+                'djc-btn-go',
+                () => this.doGoTo()
+            );
+        },
+        doGoTo() {
             const item = this.selectedItem;
             if (!item) return;
             if (item.category === 'joints') {
-                // 关节运动：发送 {command: type, data: name} 到 /humanoid/joints/control
                 mqttClient.publishJointCommand(item.type, item.name);
                 console.log('[到位] 关节', item.type, item.name);
             } else {
-                // 坐标运动：尚未实现
                 console.log('[到位] 坐标运动尚未实现', item.type, item.name);
                 alert('坐标运动服务端尚未实现');
             }
         },
-        updateData() {
+        confirmUpdate() {
             const item = this.selectedItem;
             if (!item) return;
-            // 从全局 robotStatus 获取当前关节值
+            const categoryName = item.category === 'joints' ? '关节' : '坐标';
+            this.showConfirm(
+                '确认更新',
+                `确定要用当前机器人姿态更新 ${categoryName}「${item.type}/${item.name}」吗？原有数据将被覆盖。`,
+                '↻',
+                'djc-icon-update',
+                'djc-btn-update',
+                () => this.doUpdate()
+            );
+        },
+        doUpdate() {
+            const item = this.selectedItem;
+            if (!item) return;
             const status = this.getRobotStatus();
             if (!status || !status.joints) {
                 alert('未收到机器人状态数据');
                 return;
             }
-            // 根据类型过滤关节
             const joints = status.joints;
             const typeJointKeys = {
-                WBC:   null,  // 全部
+                WBC:   null,
                 arms:  ['idx21_arm_l_joint1','idx22_arm_l_joint2','idx23_arm_l_joint3','idx24_arm_l_joint4','idx25_arm_l_joint5','idx26_arm_l_joint6','idx27_arm_l_joint7',
                         'idx61_arm_r_joint1','idx62_arm_r_joint2','idx63_arm_r_joint3','idx64_arm_r_joint4','idx65_arm_r_joint5','idx66_arm_r_joint6','idx67_arm_r_joint7'],
                 left:  ['idx21_arm_l_joint1','idx22_arm_l_joint2','idx23_arm_l_joint3','idx24_arm_l_joint4','idx25_arm_l_joint5','idx26_arm_l_joint6','idx27_arm_l_joint7'],
@@ -125,14 +194,12 @@ export default {
             if (item.category === 'joints') {
                 const keys = typeJointKeys[item.type];
                 if (keys === null) {
-                    // WBC：全部关节
                     dataToSend = { ...joints };
                 } else {
                     dataToSend = {};
                     keys.forEach(k => { if (joints[k] !== undefined) dataToSend[k] = joints[k]; });
                 }
             } else {
-                // 坐标更新：暂用空对象占位
                 dataToSend = {};
             }
             mqttClient.publishDataReq('update', {
@@ -141,20 +208,30 @@ export default {
                 name: item.name,
                 data: dataToSend
             });
-            // 更新本地数据
             item.value = dataToSend;
             console.log('[更新]', item.type, item.name, Object.keys(dataToSend).length, '项');
         },
-        deleteData() {
+        confirmDelete() {
             const item = this.selectedItem;
             if (!item) return;
-            if (!confirm(`确认删除 ${item.type}/${item.name}？`)) return;
+            const categoryName = item.category === 'joints' ? '关节' : '坐标';
+            this.showConfirm(
+                '确认删除',
+                `确定要删除 ${categoryName}「${item.type}/${item.name}」吗？此操作不可恢复。`,
+                '✕',
+                'djc-icon-delete',
+                'djc-btn-delete',
+                () => this.doDelete()
+            );
+        },
+        doDelete() {
+            const item = this.selectedItem;
+            if (!item) return;
             mqttClient.publishDataReq('delete', {
                 category: item.category,
                 type: item.type,
                 name: item.name
             });
-            // 从本地列表移除
             this.items.splice(this.selectedIdx, 1);
             this.selectedIdx = -1;
             console.log('[删除]', item.type, item.name);

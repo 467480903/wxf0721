@@ -5,6 +5,7 @@ import { mqttClient } from './mqtt-client.js';
 
 export default {
     name: 'ProgramView',
+    inject: ['isLoggedIn'],
     template: `
     <div class="panel pv-panel">
         <div class="pv-code-wrap">
@@ -30,7 +31,7 @@ export default {
                 <span v-else class="pv-idle">就绪</span>
             </div>
             <div class="program-actions">
-                <button class="program-btn file-btn" @click="openFileList">文件</button>
+                <button v-if="isLoggedIn()" class="program-btn file-btn" @click="openFileList">文件</button>
                 <button class="program-btn read-btn" @click="readCode">读取代码</button>
                 <button
                     class="program-btn run-btn"
@@ -75,16 +76,36 @@ export default {
                 </div>
             </div>
         </div>
+        <!-- 确认弹窗 -->
+        <div v-if="confirmDialog.visible" class="save-overlay" @click.self="cancelConfirm">
+            <div class="save-dialog" style="width:360px;">
+                <h6 :style="{marginBottom:'16px', color: confirmDialog.type === 'run' ? '#4CAF50' : '#FF9800'}">
+                    {{ confirmDialog.title }}
+                </h6>
+                <div style="color:#ccc; margin-bottom:20px; line-height:1.6; white-space:pre-line;">{{ confirmDialog.message }}</div>
+                <div class="step-actions">
+                    <button class="nav-btn" @click="cancelConfirm">取消</button>
+                    <button
+                        class="nav-btn"
+                        :style="{background: confirmDialog.type === 'run' ? '#4CAF50' : '#FF9800', color:'#fff'}"
+                        @click="confirmAction">
+                        确定
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
     `,
     data() {
         return {
-            code: '// 点击「读取代码」加载 main.py',
+            code: '// 点击「读取代码」加载程序',
             currentLine: 0,
             debugging: false,
             running: false,
             showFileList: false,
-            programFiles: []
+            programFiles: [],
+            currentFileName: 'main.py',
+            confirmDialog: { visible: false, type: '', title: '', message: '', action: null }
         };
     },
     computed: {
@@ -113,9 +134,9 @@ export default {
             console.log('[程序] 已请求文件列表');
         },
         selectFile(filename) {
-            // 复制选中的文件到 main.py
             mqttClient.publishRuntimeDebug('copy', filename);
             this.showFileList = false;
+            this.currentFileName = filename;
             console.log('[程序] 已复制', filename, '→ main.py');
             // 复制后自动读取代码
             setTimeout(() => {
@@ -124,17 +145,34 @@ export default {
         },
         runProgram() {
             if (this.running) return;
+            this.confirmDialog = {
+                visible: true,
+                type: 'run',
+                title: '确认运行程序',
+                message: `即将运行程序「${this.currentFileName}」，机器人将开始执行动作。\n请确保周围环境安全，确认继续吗？`,
+                action: () => this._doRun()
+            };
+        },
+        _doRun() {
             this.running = true;
             this.currentLine = 0;
             mqttClient.publishRuntimeDebug('run');
             console.log('[程序] 已启动运行');
-            // 运行超时保护（10 分钟）
             this._runTimer = setTimeout(() => {
                 this.running = false;
             }, 600000);
         },
         startDebug() {
             if (this.debugging) return;
+            this.confirmDialog = {
+                visible: true,
+                type: 'debug',
+                title: '确认单步调试',
+                message: `即将开始单步调试「${this.currentFileName}」，每步需手动点击「下一行」。\n请确认开始调试吗？`,
+                action: () => this._doDebug()
+            };
+        },
+        _doDebug() {
             this.debugging = true;
             this.currentLine = 0;
             mqttClient.publishRuntimeDebug('debug');
@@ -142,6 +180,14 @@ export default {
             this._debugTimer = setTimeout(() => {
                 this.debugging = false;
             }, 60000);
+        },
+        cancelConfirm() {
+            this.confirmDialog.visible = false;
+        },
+        confirmAction() {
+            const act = this.confirmDialog.action;
+            this.confirmDialog.visible = false;
+            if (act) act();
         },
         nextLine() {
             if (!this.debugging) return;

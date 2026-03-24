@@ -13,7 +13,7 @@ export class UrdfViewer {
 
         // ── 场景 ──────────────────────────────────
         this.scene = new THREE.Scene();
-        // 不设置 scene.background，让 canvas 透明（配合 CSS opacity:0.3）
+        this.scene.background = new THREE.Color(0xf0f4f8);
 
         // ── 相机 ──────────────────────────────────
         this.camera = new THREE.PerspectiveCamera(
@@ -47,7 +47,9 @@ export class UrdfViewer {
         this.scene.add(rimLight);
 
         // ── 网格地面 ───────────────────────────────
-        const grid = new THREE.GridHelper(10, 20, 0x666666, 0x444444);
+        const grid = new THREE.GridHelper(10, 20, 0x409eff, 0xe4ecf4);
+        grid.material.opacity = 0.3;
+        grid.material.transparent = true;
         this.scene.add(grid);
 
         // ── 控制器（指针事件由前景处理，这里仅动画） ──

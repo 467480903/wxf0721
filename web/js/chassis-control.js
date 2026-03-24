@@ -39,7 +39,7 @@ export default {
 
         <!-- 底部 bar -->
         <div class="cc-bottombar">
-            <!-- 左侧：步进设置 -->
+            <!-- 左侧：步进设置 + 地图选择 -->
             <div class="cc-bar-left">
                 <div class="cc-stepper">
                     <label>移动距离</label>
@@ -65,6 +65,17 @@ export default {
                         <input type="text" class="cc-name-input" v-model="pointName" placeholder="名称" />
                         <button class="cc-btn cc-btn-save" @click="savePoint">保存</button>
                         <button class="cc-btn cc-btn-refresh" @click="loadPoints">刷新</button>
+                    </div>
+                </div>
+                <div class="cc-stepper cc-map-stepper">
+                    <label>地图选择</label>
+                    <div class="cc-stepper-ctrl">
+                        <select class="cc-select cc-map-select" v-model="selectedMapId" @change="switchMap">
+                            <option value="">-- 加载中 --</option>
+                            <option v-for="m in mapList" :key="m.id" :value="m.id">
+                                {{ m.displayName }}{{ m.is_current ? ' (当前)' : '' }}
+                            </option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -103,12 +114,15 @@ export default {
             pointName: '',
             mapPoints: [],
             selectedPoint: '',
+            mapList: [],
+            selectedMapId: '',
             // 画布相关
             ctx: null,
             rafId: null,
             scale: 40,            // 1 米 = 40 像素
             viewX: 0,             // 画布中心对应的地图坐标 X
             viewY: 0,             // 画布中心对应的地图坐标 Y
+            _onMapInfo: null,
         };
     },
     computed: {
@@ -147,14 +161,20 @@ export default {
                 alert('请输入点位名称');
                 return;
             }
-            mqttClient.publishCommand('save_map_point', { name: this.pointName.trim() });
+            mqttClient.publishMapControl('save_point', { name: this.pointName.trim() });
             console.log('[底盘] 保存点位', this.pointName);
             this.pointName = '';
             setTimeout(() => this.loadPoints(), 500);
         },
         loadPoints() {
-            mqttClient.publishCommand('read_map_points');
+            mqttClient.publishMapControl('read_points');
             console.log('[底盘] 请求地图点位');
+        },
+        switchMap() {
+            if (!this.selectedMapId) return;
+            mqttClient.publishMapControl('switch_map', { map_id: this.selectedMapId });
+            console.log('[底盘] 切换地图', this.selectedMapId);
+            setTimeout(() => this.loadPoints(), 1000);
         },
         gotoPoint() {
             if (!this.selectedPoint) return;
@@ -183,6 +203,19 @@ export default {
                 }
             }
         },
+        onMapInfo(data) {
+            if (data && data.command === 'maps' && Array.isArray(data.data)) {
+                this.mapList = data.data.map((m, i) => {
+                    const n = m.name ? m.name.trim() : '';
+                    return { ...m, displayName: n || `地图${i + 1}` };
+                });
+                const curr = this.mapList.find(m => m.is_current);
+                if (curr) {
+                    this.selectedMapId = curr.id;
+                }
+                console.log('[底盘] 收到', this.mapList.length, '个地图');
+            }
+        },
 
         // ── 画布渲染 ─────────────────────────────────
         resizeCanvas() {
@@ -207,8 +240,8 @@ export default {
             const ctx = this.ctx;
             const W = c.width, H = c.height;
 
-            // 清屏
-            ctx.fillStyle = '#0d1117';
+            // 清屏 - 白色背景
+            ctx.fillStyle = '#f8fafc';
             ctx.fillRect(0, 0, W, H);
 
             // 画网格
@@ -221,7 +254,7 @@ export default {
             for (const pt of this.mapPoints) {
                 if (!pt.position || pt.position.length < 2) continue;
                 const [px, py] = this.worldToCanvas(pt.position[0], pt.position[1]);
-                this.drawPoint(ctx, px, py, pt.name, pt.source === 'map' ? '#4a9eff' : '#fc6');
+                this.drawPoint(ctx, px, py, pt.name, pt.source === 'map' ? '#409eff' : '#e6a23c');
             }
 
             // 画底盘位置
@@ -231,7 +264,7 @@ export default {
             }
         },
         drawGrid(ctx, W, H) {
-            ctx.strokeStyle = '#1a2030';
+            ctx.strokeStyle = '#e4ecf4';
             ctx.lineWidth = 1;
             const step = this.scale; // 1 米一格
             const [ox, _] = this.worldToCanvas(0, 0);
@@ -254,7 +287,7 @@ export default {
         drawAxes(ctx, W, H) {
             const [ox, oy] = this.worldToCanvas(0, 0);
             // X 轴（水平）
-            ctx.strokeStyle = '#2a3a5c';
+            ctx.strokeStyle = '#409eff';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.moveTo(0, oy);
@@ -266,7 +299,7 @@ export default {
             ctx.lineTo(ox, H);
             ctx.stroke();
             // 标签
-            ctx.fillStyle = '#4a5878';
+            ctx.fillStyle = '#909399';
             ctx.font = '12px monospace';
             ctx.fillText('X+', W - 24, oy - 6);
             ctx.fillText('Y+', ox + 6, 16);
@@ -277,10 +310,10 @@ export default {
             ctx.arc(px, py, 5, 0, Math.PI * 2);
             ctx.fill();
             ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 1.5;
             ctx.stroke();
             // 标签
-            ctx.fillStyle = '#cfd4dc';
+            ctx.fillStyle = '#606266';
             ctx.font = '11px monospace';
             ctx.fillText(label, px + 8, py - 8);
         },
@@ -291,8 +324,8 @@ export default {
             ctx.translate(px, py);
             // 画布 Y 翻转，所以角度取反
             ctx.rotate(-yaw);
-            ctx.fillStyle = '#6f6';
-            ctx.strokeStyle = '#3c3';
+            ctx.fillStyle = '#67c23a';
+            ctx.strokeStyle = '#409eff';
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(size, 0);          // 前端
@@ -304,7 +337,7 @@ export default {
             ctx.restore();
 
             // 标签
-            ctx.fillStyle = '#6f6';
+            ctx.fillStyle = '#67c23a';
             ctx.font = 'bold 12px monospace';
             ctx.fillText('底盘', px + 12, py + 4);
         },
@@ -319,14 +352,17 @@ export default {
     },
     mounted() {
         mqttClient.addMapPointsCallback(this.onMapPoints);
+        mqttClient.addMapInfoCallback(this.onMapInfo);
         this.ctx = this.$refs.canvas.getContext('2d');
         this.resizeCanvas();
         window.addEventListener('resize', this.resizeCanvas);
         this.loadPoints();
+        mqttClient.publishMapControl('read_maps');
         this.startRenderLoop();
     },
     beforeUnmount() {
         mqttClient.removeMapPointsCallback(this.onMapPoints);
+        mqttClient.removeMapInfoCallback(this.onMapInfo);
         window.removeEventListener('resize', this.resizeCanvas);
         if (this.rafId) cancelAnimationFrame(this.rafId);
     }

@@ -57,11 +57,15 @@ TOPIC_COMMANDS_DONE  = "/humanoid/commands/done"     # 服务端发布完成通�
 
 TOPIC_MAP_POINTS     = "/humanoid/map/points"        # 服务端发布地图点位
 TOPIC_MAP_CONTROL    = "/humanoid/map/control"       # 客户端控制地图点位
+TOPIC_MAP_INFO       = "/humanoid/map/info"          # 服务端发布地图列表/SLAM状态
 
 TOPIC_PROGRAMS_CONTROL = "/humanoid/programs/control"  # 客户端控制程序调试
 TOPIC_PROGRAMS_STEP    = "/humanoid/programs/step"     # 服务端发布执行步骤
 TOPIC_PROGRAMS_CODES   = "/humanoid/programs/codes"    # 服务端发布代码内容
 TOPIC_PROGRAMS_FILES   = "/humanoid/programs/files"    # 服务端发布文件列表
+
+TOPIC_MODBUS_DATA      = "/humanoid/modbus/data"       # 服务端发布 Modbus 数据
+TOPIC_MODBUS_CONTROL   = "/humanoid/modbus/control"    # 客户端控制 Modbus 读写
 
 # ── MQTT 连接配置 ─────────────────────────────────────────
 MQTT_BROKER = "localhost"
@@ -73,6 +77,7 @@ robot = None
 interaction = None
 camera = None
 slam = None
+gmap = None               # GDK 地图管理对象
 lidar = None
 ee_controller = None      # 末端执行器控制器
 nav = None                # 底盘导航控制器
@@ -86,7 +91,7 @@ def init_gdk():
     依次创建：Robot / Interaction / Camera / Slam / Lidar，
     以及基于 Robot 的末端控制器和底盘控制器。
     """
-    global robot, interaction, camera, slam, lidar, ee_controller, nav, _gdk_ready
+    global robot, interaction, camera, slam, gmap, lidar, ee_controller, nav, _gdk_ready
 
     if _gdk_ready:
         return
@@ -104,6 +109,7 @@ def init_gdk():
     interaction = agibot_gdk.Interaction()
     camera = agibot_gdk.Camera()
     slam = agibot_gdk.Slam()
+    gmap = agibot_gdk.Map()
     lidar = agibot_gdk.Lidar()
     time.sleep(2)  # 等待 DDS 连接就绪
 
@@ -117,7 +123,7 @@ def init_gdk():
     nav.list_waypoints()
 
     _gdk_ready = True
-    print("[GDK] 全局对象创建完成: Robot/Interaction/Camera/Slam/Lidar/EE/Nav")
+    print("[GDK] 全局对象创建完成: Robot/Interaction/Camera/Slam/Map/Lidar/EE/Nav")
 
 
 def release_gdk():

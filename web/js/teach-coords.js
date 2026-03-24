@@ -9,11 +9,12 @@ export default {
     name: 'TeachCoords',
     inject: ['getRobotStatus'],
     template: `
-    <div class="panel" style="text-align:center;">
-        <h5>示教（坐标）- 末端位姿</h5>
+    <div class="panel tc-panel">
+        <h5 class="tc-title">示教（坐标） · 末端位姿</h5>
 
-        <!-- 左上角：坐标系选择 -->
-        <div style="display:flex; gap:20px; justify-content:flex-start; margin-bottom:16px; flex-wrap:wrap;">
+        <div class="tc-content">
+        <!-- 坐标系选择 -->
+        <div class="tc-coord-sys-bar">
             <div class="coord-sys-row">
                 <label class="coord-sys-label">左手坐标系</label>
                 <select v-model="leftFrame" class="coord-sys-select">
@@ -32,11 +33,10 @@ export default {
             </div>
         </div>
 
-        <div style="display:flex; gap:40px; flex-wrap:wrap; justify-content:center;">
-
+        <div class="tc-hands-wrap">
             <!-- 左手 -->
-            <div style="flex:0 1 440px; min-width:340px;">
-                <h6 style="color:#6cf; margin-bottom:12px;">左手</h6>
+            <div class="tc-hand-group tc-hand-left">
+                <h6 class="tc-hand-title">左手</h6>
                 <div class="coord-row" v-for="ax in axes" :key="'L_'+ax">
                     <span class="axis-label">{{ ax.toUpperCase() }}</span>
                     <button class="minus" @click="step('left', ax, -stepSize)">−</button>
@@ -52,8 +52,8 @@ export default {
             </div>
 
             <!-- 右手 -->
-            <div style="flex:0 1 440px; min-width:340px;">
-                <h6 style="color:#6cf; margin-bottom:12px;">右手</h6>
+            <div class="tc-hand-group tc-hand-right">
+                <h6 class="tc-hand-title">右手</h6>
                 <div class="coord-row" v-for="ax in axes" :key="'R_'+ax">
                     <span class="axis-label">{{ ax.toUpperCase() }}</span>
                     <button class="minus" @click="step('right', ax, -stepSize)">−</button>
@@ -68,24 +68,32 @@ export default {
                 </div>
             </div>
         </div>
-
-        <div style="margin-top:14px; color:#888; font-size:13px;">
-            步长:
-            <input type="number" v-model.number="stepSize" step="0.01" min="0.001"
-                   style="width:90px; background:#11151c; color:#6f6; border:1px solid #2a313c; padding:3px 6px; border-radius:4px;">
-            <span style="margin-left:6px;">(XYZ:米, RX/RY/RZ:弧度)</span>
-            <span style="margin-left:10px; color:#6f6;">● 已连接实时状态</span>
         </div>
 
-        <!-- 保存按钮（右下角） -->
-        <div style="margin-top:16px; text-align:right;">
-            <button class="save-btn" @click="showSaveDialog = true">保存</button>
+        <!-- 底部操作栏：按钮组 + 右侧功能描述 -->
+        <div class="tc-actionbar">
+            <div class="tc-actions">
+                <button class="djc-btn djc-btn-read" @click="showSaveDialog = true">
+                    <span style="margin-right:4px;">💾</span> 保存
+                </button>
+            </div>
+            <div class="tc-info">
+                <span class="tc-info-item">
+                    <span class="tc-info-label">步长</span>
+                    <input type="number" v-model.number="stepSize" step="0.01" min="0.001" class="tc-step-input">
+                </span>
+                <span class="tc-info-desc">(XYZ:米, RX/RY/RZ:弧度)</span>
+                <span class="tc-status">
+                    <span class="tc-conn-dot"></span>
+                    <span class="tc-conn-text">已连接实时状态</span>
+                </span>
+            </div>
         </div>
 
         <!-- 保存弹窗 -->
         <div v-if="showSaveDialog" class="save-overlay" @click.self="showSaveDialog = false">
             <div class="save-dialog">
-                <h6 style="color:#6cf; margin-bottom:16px;">保存末端位姿</h6>
+                <h6 style="color:#409eff; margin-bottom:16px;">保存末端位姿</h6>
 
                 <div class="form-row">
                     <label>名称</label>
@@ -94,7 +102,7 @@ export default {
                 </div>
 
                 <div style="margin-bottom:16px;">
-                    <label style="display:block; color:#b0b6c0; font-size:14px; margin-bottom:8px;">类型</label>
+                    <label style="display:block; color:#606266; font-size:14px; margin-bottom:8px;">类型</label>
                     <div class="radio-group">
                         <label v-for="t in saveTypes" :key="t">
                             <input type="radio" :value="t" v-model="saveType" /> {{ t }}

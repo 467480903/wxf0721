@@ -55,6 +55,7 @@ import status
 import commands
 import map as map_module
 import programs
+import modbus
 
 
 # ═══════════════════════════════════════════════════════════
@@ -73,6 +74,7 @@ def on_connect(client, userdata, flags, rc, properties=None):
         client.subscribe(common.TOPIC_COMMANDS_DATA, qos=2)
         client.subscribe(common.TOPIC_MAP_CONTROL, qos=0)
         client.subscribe(common.TOPIC_PROGRAMS_CONTROL, qos=0)
+        client.subscribe(common.TOPIC_MODBUS_CONTROL, qos=0)
         print("[MQTT] 已订阅所有控制主题:")
         print(f"  - {common.TOPIC_CAMERA_CONTROL}")
         print(f"  - {common.TOPIC_JOINTS_CONTROL}")
@@ -81,6 +83,7 @@ def on_connect(client, userdata, flags, rc, properties=None):
         print(f"  - {common.TOPIC_COMMANDS_DATA}")
         print(f"  - {common.TOPIC_MAP_CONTROL}")
         print(f"  - {common.TOPIC_PROGRAMS_CONTROL}")
+        print(f"  - {common.TOPIC_MODBUS_CONTROL}")
         print("-" * 60)
     else:
         print(f"[MQTT] 连接失败，返回码: {rc}")
@@ -145,6 +148,10 @@ def on_message(client, userdata, msg):
         print(f"\n[命令] programs/control: {cmd}")
         programs.handle_control(payload)
 
+    elif topic == common.TOPIC_MODBUS_CONTROL:
+        # Modbus 读写命令（read/write）
+        modbus.handle_control(payload)
+
     else:
         print(f"[MQTT] 未识别的主题: {topic}")
 
@@ -185,6 +192,9 @@ def main():
 
     # 6. 启动状态发布线程（持续发布机器人状态）
     status.start_publishing_thread()
+
+    # 7. 启动 Modbus 轮询线程（按配置 rate 周期读取寄存器）
+    modbus.start_polling_thread()
 
     print("\n[主循环] 服务已就绪，等待命令...")
     print("-" * 60)

@@ -30,9 +30,11 @@ const CAMERAS_TOPIC = '/humanoid/camera/data';
 const JOINTS_DATA_TOPIC = '/humanoid/joints/data';
 const DONE_TOPIC = '/humanoid/commands/done';
 const MAP_POINTS_TOPIC = '/humanoid/map/points';
+const MAP_INFO_TOPIC = '/humanoid/map/info';
 const PROGRAMS_STEP_TOPIC = '/humanoid/programs/step';
 const PROGRAMS_CODES_TOPIC = '/humanoid/programs/codes';
 const PROGRAMS_FILES_TOPIC = '/humanoid/programs/files';
+const MODBUS_DATA_TOPIC = '/humanoid/modbus/data';
 
 // 客户端发布主题（客户端发送命令）
 const CAMERA_CTRL_TOPIC = '/humanoid/camera/control';
@@ -42,6 +44,7 @@ const STATUS_CTRL_TOPIC = '/humanoid/status/control';
 const COMMANDS_TOPIC = '/humanoid/commands/data';
 const MAP_CTRL_TOPIC = '/humanoid/map/control';
 const PROGRAMS_CTRL_TOPIC = '/humanoid/programs/control';
+const MODBUS_CTRL_TOPIC = '/humanoid/modbus/control';
 
 class MqttClient {
     constructor() {
@@ -57,6 +60,8 @@ class MqttClient {
         this.runtimeProgramFilesCallbacks = [];
         this.dataRespCallbacks = [];
         this.mapPointsCallbacks = [];
+        this.mapInfoCallbacks = [];
+        this.modbusDataCallbacks = [];
     }
 
     connect() {
@@ -95,6 +100,10 @@ class MqttClient {
                     this.runtimeProgramFilesCallbacks.forEach(cb => cb(data));
                 } else if (message.destinationName === MAP_POINTS_TOPIC) {
                     this.mapPointsCallbacks.forEach(cb => cb(data));
+                } else if (message.destinationName === MAP_INFO_TOPIC) {
+                    this.mapInfoCallbacks.forEach(cb => cb(data));
+                } else if (message.destinationName === MODBUS_DATA_TOPIC) {
+                    this.modbusDataCallbacks.forEach(cb => cb(data));
                 }
             } catch (e) {
                 console.error('[MQTT] JSON 解析失败:', e);
@@ -114,6 +123,8 @@ class MqttClient {
                 this.client.subscribe(PROGRAMS_CODES_TOPIC, { qos: 0 });
                 this.client.subscribe(PROGRAMS_FILES_TOPIC, { qos: 0 });
                 this.client.subscribe(MAP_POINTS_TOPIC, { qos: 0 });
+                this.client.subscribe(MAP_INFO_TOPIC, { qos: 0 });
+                this.client.subscribe(MODBUS_DATA_TOPIC, { qos: 0 });
             },
             onFailure: (err) => {
                 console.error('[MQTT] 连接失败:', err.errorMessage);
@@ -245,6 +256,32 @@ class MqttClient {
     }
 
     /**
+     * 注册地图信息回调（地图列表/SLAM状态）
+     */
+    addMapInfoCallback(callback) {
+        if (!this.mapInfoCallbacks.includes(callback)) {
+            this.mapInfoCallbacks.push(callback);
+        }
+    }
+
+    removeMapInfoCallback(callback) {
+        this.mapInfoCallbacks = this.mapInfoCallbacks.filter(cb => cb !== callback);
+    }
+
+    /**
+     * 注册 Modbus 数据回调
+     */
+    addModbusDataCallback(callback) {
+        if (!this.modbusDataCallbacks.includes(callback)) {
+            this.modbusDataCallbacks.push(callback);
+        }
+    }
+
+    removeModbusDataCallback(callback) {
+        this.modbusDataCallbacks = this.modbusDataCallbacks.filter(cb => cb !== callback);
+    }
+
+    /**
      * 发布命令到指定 topic
      */
     publishToTopic(topic, payload) {
@@ -327,6 +364,16 @@ class MqttClient {
     publishMapControl(command, data = null) {
         const payload = data !== null ? { command, data } : { command };
         this.publishToTopic(MAP_CTRL_TOPIC, payload);
+    }
+
+    /**
+     * 发送 Modbus 控制命令到 /humanoid/modbus/control
+     * @param {string} command - 命令名（read/write）
+     * @param {*} data - 命令数据
+     */
+    publishModbusControl(command, data = null) {
+        const payload = data !== null ? { command, data } : { command };
+        this.publishToTopic(MODBUS_CTRL_TOPIC, payload);
     }
 
     /**

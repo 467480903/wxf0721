@@ -12,6 +12,8 @@ import CameraView      from './camera-view.js';
 import DataCollection  from './data-collection.js';
 import ModelInference  from './model-inference.js';
 import DataJointsCoords from './data-joints-coords.js';
+import ModbusView       from './modbus-view.js';
+import YoloInference   from './yolo-inference.js';
 import ChassisControl  from './chassis-control.js';
 import PlaceholderView from './placeholder-view.js';
 
@@ -21,6 +23,13 @@ const App = {
         return {
             currentMenu: '',          // 当前选中的菜单项 id
             openDropdown: '',         // 当前展开的下拉父菜单 id
+            isLoggedIn: false,        // 是否已登录管理模式
+            loginDialog: {            // 登录弹窗
+                visible: false,
+                username: '',
+                password: '',
+                error: ''
+            },
             menus: [
                 {
                     id: 'teach', label: '示教', icon: '🎮', children: [
@@ -31,25 +40,20 @@ const App = {
                 {
                     id: 'data', label: '数据', icon: '📊', children: [
                         { id: 'data_jc',      label: '关节/坐标' },
-                        { id: 'data_modbus',  label: 'modbus变量' },
-                        { id: 'data_sync',    label: '同步' },
-                        { id: 'data_mappoint',label: '地图点' },
+                        { id: 'data_modbus',  label: 'Modbus' },
                     ]
                 },
                 { id: 'program', label: '程序', icon: '📋' },
                 {
                     id: 'map', label: '地图', icon: '🗺️', children: [
                         { id: 'map_scan',    label: '扫图建图' },
-                        { id: 'map_use',     label: '使用地图' },
                         { id: 'map_chassis', label: '底盘控制' },
                     ]
                 },
                 {
                     id: 'camera', label: '相机', icon: '📷', children: [
                         { id: 'cam_capture', label: '采集' },
-                        { id: 'cam_label',   label: '自动标注' },
-                        { id: 'cam_flow',    label: '流程' },
-                        { id: 'cam_settings',label: '设置' },
+                        { id: 'cam_yolo',    label: 'YOLO计算' },
                     ]
                 },
             ],
@@ -57,14 +61,20 @@ const App = {
             robotStatus: null   // 共享的机器人状态
         };
     },
-    components: { TeachJoints, TeachCoords, ProgramView, MapView, CameraView, DataCollection, ModelInference, DataJointsCoords, ChassisControl, PlaceholderView },
+    components: { TeachJoints, TeachCoords, ProgramView, MapView, CameraView, DataCollection, ModelInference, DataJointsCoords, ModbusView, YoloInference, ChassisControl, PlaceholderView },
     provide() {
         return {
             getUrdfViewer: () => this.urdfViewer,
-            getRobotStatus: () => this.robotStatus
+            getRobotStatus: () => this.robotStatus,
+            isLoggedIn: () => this.isLoggedIn
         };
     },
     computed: {
+        // 根据登录状态过滤可见菜单（未登录时隐藏 地图、相机）
+        visibleMenus() {
+            if (this.isLoggedIn) return this.menus;
+            return this.menus.filter(m => m.id !== 'map' && m.id !== 'camera');
+        },
         // 当前菜单项的标题（用于占位组件）
         currentTitle() {
             for (const m of this.menus) {
@@ -78,9 +88,18 @@ const App = {
         },
         // 导航栏右侧显示的页面标题
         navPageTitle() {
+            if (this.currentMenu === 'program') {
+                const pv = this.$refs.programView;
+                const name = pv ? pv.currentFileName : 'main.py';
+                return `程序 - ${name}`;
+            }
             const titles = {
                 'data_jc': '关节 / 坐标数据',
-                'program': '程序 - main.py',
+                'data_modbus': 'Modbus 数据',
+                'map_slam': '扫图建图',
+                'map_points': '地图点管理',
+                'cam_capture': '相机采集',
+                'cam_yolo': 'YOLO 计算',
             };
             return titles[this.currentMenu] || '';
         },
@@ -88,7 +107,7 @@ const App = {
         isPlaceholder() {
             const implemented = [
                 'teach_joints', 'teach_coords', 'program',
-                'map_scan', 'map_chassis', 'cam_capture', 'data_jc'
+                'map_scan', 'map_chassis', 'cam_capture', 'cam_yolo', 'data_jc', 'data_modbus'
             ];
             return this.currentMenu && !implemented.includes(this.currentMenu);
         }
@@ -99,11 +118,10 @@ const App = {
 
         <nav id="toolbar" @click.stop>
             <span class="brand" @click="toggleHome">
-                <span class="brand-logo"><img src="minth-logo.png" alt="Minth" /></span>
                 底盘机器人
             </span>
 
-            <template v-for="m in menus" :key="m.id">
+            <template v-for="m in visibleMenus" :key="m.id">
                 <!-- 无子菜单：直接按钮 -->
                 <button v-if="!m.children"
                         class="menu-btn"
@@ -132,12 +150,45 @@ const App = {
             </template>
 
             <span class="nav-page-title" v-if="navPageTitle">{{ navPageTitle }}</span>
+
+            <div class="toolbar-right">
+                <button class="menu-btn login-btn"
+                        :class="{ 'login-btn-out': isLoggedIn }"
+                        @click="toggleLogin">
+                    <span class="menu-icon">{{ isLoggedIn ? '🔒' : '🔓' }}</span>{{ isLoggedIn ? '退出' : '登录' }}
+                </button>
+                <span class="brand-logo"><img src="minth-logo.png" alt="Minth" /></span>
+            </div>
         </nav>
 
-        <main id="content" :class="{ 'content-hidden': !currentMenu, 'content-fullscreen': currentMenu === 'map_chassis' || currentMenu === 'cam_capture' || currentMenu === 'data_jc' || currentMenu === 'program' }">
+        <!-- 登录弹窗 -->
+        <div v-if="loginDialog.visible" class="save-overlay login-overlay" @click.self="closeLoginDialog">
+            <div class="save-dialog login-dialog">
+                <h6 class="login-title">🔐 管理模式登录</h6>
+                <div class="login-form">
+                    <div class="login-form-row">
+                        <label>帐号</label>
+                        <input type="text" v-model="loginDialog.username" class="login-input"
+                               placeholder="请输入帐号" @keyup.enter="doLogin" ref="loginUserInput" />
+                    </div>
+                    <div class="login-form-row">
+                        <label>密码</label>
+                        <input type="password" v-model="loginDialog.password" class="login-input"
+                               placeholder="请输入密码" @keyup.enter="doLogin" />
+                    </div>
+                    <div v-if="loginDialog.error" class="login-error">{{ loginDialog.error }}</div>
+                    <div class="login-form-actions">
+                        <button class="cv-btn cv-btn-save" @click="doLogin">登录</button>
+                        <button class="cv-btn" @click="closeLoginDialog">取消</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <main id="content" :class="{ 'content-hidden': !currentMenu, 'content-fullscreen': currentMenu === 'map_chassis' || currentMenu === 'cam_capture' || currentMenu === 'cam_yolo' || currentMenu === 'data_jc' || currentMenu === 'data_modbus' || currentMenu === 'program' || currentMenu === 'teach_joints' || currentMenu === 'teach_coords' }">
             <teach-joints     v-if="currentMenu === 'teach_joints'"></teach-joints>
             <teach-coords     v-if="currentMenu === 'teach_coords'"></teach-coords>
-            <program-view     v-if="currentMenu === 'program'"></program-view>
+            <program-view     ref="programView" v-if="currentMenu === 'program'"></program-view>
             <map-view         v-if="currentMenu === 'map_scan'"></map-view>
 
             <!-- 地图 > 底盘控制 -->
@@ -146,8 +197,14 @@ const App = {
             <!-- 相机 > 采集 -->
             <camera-view      v-if="currentMenu === 'cam_capture'"></camera-view>
 
+            <!-- 相机 > YOLO计算 -->
+            <yolo-inference   v-if="currentMenu === 'cam_yolo'"></yolo-inference>
+
             <!-- 数据 > 关节/坐标 -->
             <data-joints-coords v-if="currentMenu === 'data_jc'"></data-joints-coords>
+
+            <!-- 数据 > Modbus -->
+            <modbus-view      v-if="currentMenu === 'data_modbus'"></modbus-view>
 
             <!-- 占位页面 -->
             <placeholder-view :title="currentTitle" v-if="isPlaceholder"></placeholder-view>
@@ -158,6 +215,45 @@ const App = {
         selectMenu(id) {
             this.currentMenu = id;
             this.openDropdown = '';
+        },
+        toggleLogin() {
+            if (this.isLoggedIn) {
+                // 退出登录
+                this.isLoggedIn = false;
+                // 如果当前处于隐藏菜单页面，回到首页
+                if (this.currentMenu === 'map_scan' || this.currentMenu === 'map_chassis'
+                    || this.currentMenu === 'cam_capture' || this.currentMenu === 'cam_yolo') {
+                    this.currentMenu = '';
+                }
+                console.log('[登录] 已退出管理模式');
+            } else {
+                // 打开登录弹窗
+                this.loginDialog.visible = true;
+                this.loginDialog.username = '';
+                this.loginDialog.password = '';
+                this.loginDialog.error = '';
+                this.$nextTick(() => {
+                    if (this.$refs.loginUserInput) this.$refs.loginUserInput.focus();
+                });
+            }
+        },
+        closeLoginDialog() {
+            this.loginDialog.visible = false;
+        },
+        doLogin() {
+            const u = (this.loginDialog.username || '').trim();
+            const p = (this.loginDialog.password || '').trim();
+            if (!u || !p) {
+                this.loginDialog.error = '请输入帐号和密码';
+                return;
+            }
+            if (u === 'admin' && p === 'admin') {
+                this.isLoggedIn = true;
+                this.loginDialog.visible = false;
+                console.log('[登录] 登录成功，进入管理模式');
+            } else {
+                this.loginDialog.error = '帐号或密码错误';
+            }
         },
         toggleHome() {
             // 点击「底盘机器人」logo，收起所有功能页，显示 3D 模型
