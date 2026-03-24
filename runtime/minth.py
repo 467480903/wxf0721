@@ -22,6 +22,8 @@ Minth 机器人控制类库
     robot.JOINT("idx11_head_joint1", offset=0.01)   # 单关节增量微调
     robot.JOINT("idx11_head_joint1", value=0.0)     # 单关节运动到指定角度
     robot.WAIST_CORRECT()       # 根据 detect.json 的 angle_rad 纠正腰部旋转
+    val = robot.readData("m1")  # 读取 synch 变量 m1 的值
+    robot.setData("m1_", 1)     # 设置 synch write 变量 m1_ 的值
     robot.close()
 
     # X2 型号（预留）
@@ -46,6 +48,10 @@ COMMANDS_TOPIC = "/humanoid/commands/data"
 DONE_TOPIC = "/humanoid/commands/done"
 # 相机控制主题
 CAMERA_TOPIC = "/humanoid/camera/control"
+# synch 数据同步主题（readData / setData）
+DATA_READ_TOPIC = "/humanoid/data/read"
+DATA_WRITE_TOPIC = "/humanoid/data/write"
+DATA_RESPONSE_TOPIC = "/humanoid/data/response"
 
 # 默认超时时间（秒）
 DEFAULT_TIMEOUT = 15
@@ -71,6 +77,10 @@ class _RobotBase:
         self.timeout = timeout
         self._done_event = threading.Event()
         self._connected = False
+        # synch 数据读取响应同步
+        self._data_value = None
+        self._data_name = None
+        self._data_ready = threading.Event()
         cid = client_id or f"minth_{self.__class__.__name__}_{id(self)}"
         self._client = mqtt.Client(
             mqtt.CallbackAPIVersion.VERSION2,
@@ -92,6 +102,7 @@ class _RobotBase:
     def _on_connect(self, client, userdata, flags, rc, properties=None):
         if rc == 0:
             client.subscribe(DONE_TOPIC, qos=2)
+            client.subscribe(DATA_RESPONSE_TOPIC, qos=0)
             self._connected = True
         else:
             raise ConnectionError(f"MQTT 连接失败，返回码: {rc}")
@@ -99,6 +110,19 @@ class _RobotBase:
     def _on_message(self, client, userdata, msg):
         if msg.topic == DONE_TOPIC:
             self._done_event.set()
+        elif msg.topic == DATA_RESPONSE_TOPIC:
+            self._on_data_response(msg)
+
+    def _on_data_response(self, msg):
+        """处理 synch 数据读取/写入响应"""
+        try:
+            payload = json.loads(msg.payload.decode("utf-8"))
+        except Exception:
+            return
+        name = payload.get("name")
+        if name == self._data_name:
+            self._data_value = payload.get("value")
+            self._data_ready.set()
 
     # ── 核心：发送命令并等待完成 ────────────────────────────
     # 关节命令集合（发送到 /humanoid/joints/control）
@@ -146,6 +170,64 @@ class G2(_RobotBase):
     所有方法均为同步阻塞调用：发送 MQTT 命令后等待 /G2_minth_app_done 回复，
     收到后返回 True；15 秒超时返回 False。
     """
+
+    # ── synch 数据同步（readData / setData）─────────────────
+
+    def readData(self, name):
+        """读取 synch 变量的值
+
+        通过 MQTT 向 /humanoid/data/read 发送请求，
+        等待 /humanoid/data/response 返回结果。
+
+        Args:
+            name: synch 变量名（如 "m1"、"w1"）
+        Returns:
+            变量值或 None（超时 / 未找到）
+        """
+        self._data_name = name
+        self._data_value = None
+        self._data_ready.clear()
+
+        payload = {"command": "read", "name": name}
+        self._client.publish(
+            DATA_READ_TOPIC, json.dumps(payload, ensure_ascii=False), qos=0
+        )
+        print(f"[Minth] → readData({name})")
+
+        if self._data_ready.wait(timeout=self.timeout):
+            print(f"[Minth] ✓ readData({name}) = {self._data_value}")
+            return self._data_value
+        print(f"[Minth] ✗ readData({name}) 超时")
+        return None
+
+    def setData(self, name, value):
+        """设置 synch write 变量的值
+
+        通过 MQTT 向 /humanoid/data/write 发送请求，
+        服务端收到后更新 synch 中对应 write 条目的 value 并标记 state=1，
+        随后 modbus/s7 轮询线程会将值写入设备。
+
+        Args:
+            name:  synch write 变量名（如 "m1_"、"w1_"）
+            value: 要写入的值
+        Returns:
+            bool: True=服务端已接收，False=超时
+        """
+        self._data_name = name
+        self._data_value = None
+        self._data_ready.clear()
+
+        payload = {"command": "write", "name": name, "value": value}
+        self._client.publish(
+            DATA_WRITE_TOPIC, json.dumps(payload, ensure_ascii=False), qos=0
+        )
+        print(f"[Minth] → setData({name}, {value})")
+
+        if self._data_ready.wait(timeout=self.timeout):
+            print(f"[Minth] ✓ setData({name}, {value}) 已接收")
+            return True
+        print(f"[Minth] ✗ setData({name}, {value}) 超时")
+        return False
 
     def GO(self, num):
         """导航到指定地图点位

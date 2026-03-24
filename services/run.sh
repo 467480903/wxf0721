@@ -30,6 +30,9 @@
 #    ./run.sh restart    # 重启
 # ─────────────────────────────────────────────────────────
 
+# 开机自启动时网络可能尚未就绪：限制等待时间，失败不影响服务启动
+timeout 10 ntpdate -u ntp.aliyun.com || true
+
 # 切换到脚本所在目录（services/）
 RUN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 项目根目录（services 的上一级）
@@ -163,14 +166,17 @@ case "${1:-start}" in
         echo "════════════════════════════════════════════════════"
         echo "  Humanoid 机器人控制服务启动  $(date '+%Y-%m-%d %H:%M:%S')"
         echo "════════════════════════════════════════════════════"
+        failed=0
         for svc in "${SERVICES[@]}"; do
-            start_service "$svc"
+            start_service "$svc" || failed=1
         done
         echo "────────────────────────────────────────────────────"
         echo "  日志目录: $LOG_DIR"
         echo "  查看状态: ./run.sh status"
         echo "  停止服务: ./run.sh stop"
         echo "════════════════════════════════════════════════════"
+        # 任一服务启动失败时以非零退出，供 systemd 自启动重试判断
+        exit $failed
         ;;
 
     stop)

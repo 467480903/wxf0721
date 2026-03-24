@@ -22,7 +22,7 @@ def main():
         time.sleep(GDK_INIT_WAIT_S)
 
         # 目标：pnc 后退 0.5m
-        dx = 0.5
+        dx = -0.2
         dy = 0.0
         dz = 0.0
         yaw_rad = 0.0

@@ -70,6 +70,11 @@ TOPIC_PROGRAMS_DELETE_RESULT = "/humanoid/programs/delete_result"  # 服务端�
 TOPIC_MODBUS_DATA      = "/humanoid/modbus/data"       # 服务端发布 Modbus 数据
 TOPIC_MODBUS_CONTROL   = "/humanoid/modbus/control"    # 客户端控制 Modbus 读写
 
+# synch 数据同步主题（minth 客户端通过 readData/setData 访问）
+TOPIC_DATA_READ        = "/humanoid/data/read"         # 客户端请求读取 synch 变量
+TOPIC_DATA_WRITE       = "/humanoid/data/write"        # 客户端写入 synch 变量
+TOPIC_DATA_RESPONSE    = "/humanoid/data/response"     # 服务端返回读取结果
+
 # ── MQTT 连接配置 ─────────────────────────────────────────
 MQTT_BROKER = "localhost"
 MQTT_PORT = 1883

@@ -18,6 +18,8 @@ main.py — Humanoid 机器人控制服务（单一入口）
   - commands.py   动作命令处理（tts/grab/go 等，/humanoid/commands/）
   - map.py        地图点位管理（/humanoid/map/）
   - programs.py   runtime 程序调试（/humanoid/programs/）
+  - modbus.py     Modbus TCP 读写（/humanoid/modbus/）
+  - s7.py         西门子 S7 协议读写（/humanoid/modbus/ data 发布）
 
 MQTT 主题结构（遵循 SKILL.md 规则）：
   /humanoid/camera/data         服务端发布相机帧
@@ -36,6 +38,11 @@ MQTT 主题结构（遵循 SKILL.md 规则）：
   /humanoid/programs/step       服务端发布执行步骤
   /humanoid/programs/codes      服务端发布代码内容
   /humanoid/programs/files      服务端发布文件列表
+  /humanoid/modbus/data       服务端发布 Modbus/S7 数据
+  /humanoid/modbus/control    客户端控制 Modbus 读写
+  /humanoid/data/read         客户端请求读取 synch 变量
+  /humanoid/data/write        客户端写入 synch 变量
+  /humanoid/data/response     服务端返回读取/写入结果
 """
 
 import os
@@ -56,6 +63,7 @@ import commands
 import map as map_module
 import programs
 import modbus
+import s7
 
 
 # ═══════════════════════════════════════════════════════════
@@ -75,6 +83,8 @@ def on_connect(client, userdata, flags, rc, properties=None):
         client.subscribe(common.TOPIC_MAP_CONTROL, qos=0)
         client.subscribe(common.TOPIC_PROGRAMS_CONTROL, qos=0)
         client.subscribe(common.TOPIC_MODBUS_CONTROL, qos=0)
+        client.subscribe(common.TOPIC_DATA_READ, qos=0)
+        client.subscribe(common.TOPIC_DATA_WRITE, qos=0)
         print("[MQTT] 已订阅所有控制主题:")
         print(f"  - {common.TOPIC_CAMERA_CONTROL}")
         print(f"  - {common.TOPIC_JOINTS_CONTROL}")
@@ -84,6 +94,8 @@ def on_connect(client, userdata, flags, rc, properties=None):
         print(f"  - {common.TOPIC_MAP_CONTROL}")
         print(f"  - {common.TOPIC_PROGRAMS_CONTROL}")
         print(f"  - {common.TOPIC_MODBUS_CONTROL}")
+        print(f"  - {common.TOPIC_DATA_READ}")
+        print(f"  - {common.TOPIC_DATA_WRITE}")
         print("-" * 60)
     else:
         print(f"[MQTT] 连接失败，返回码: {rc}")
@@ -152,8 +164,54 @@ def on_message(client, userdata, msg):
         # Modbus 读写命令（read/write）
         modbus.handle_control(payload)
 
+    elif topic == common.TOPIC_DATA_READ:
+        # synch 数据读取（readData）
+        _handle_data_read(payload)
+
+    elif topic == common.TOPIC_DATA_WRITE:
+        # synch 数据写入（setData）
+        _handle_data_write(payload)
+
     else:
         print(f"[MQTT] 未识别的主题: {topic}")
+
+
+# ═══════════════════════════════════════════════════════════
+#  synch 数据同步处理
+# ═══════════════════════════════════════════════════════════
+
+def _handle_data_read(payload):
+    """处理 /humanoid/data/read 请求，返回 synch 变量值"""
+    name = payload.get("name")
+    if not name:
+        common.publish(common.TOPIC_DATA_RESPONSE, {
+            "command": "read", "name": None, "value": None, "error": "missing name"
+        })
+        return
+    value = db.synch_read(name)
+    common.publish(common.TOPIC_DATA_RESPONSE, {
+        "command": "read", "name": name, "value": value
+    })
+    print(f"[Data] readData({name}) = {value}")
+
+
+def _handle_data_write(payload):
+    """处理 /humanoid/data/write 请求，更新 synch write 条目"""
+    name = payload.get("name")
+    value = payload.get("value")
+    if not name:
+        common.publish(common.TOPIC_DATA_RESPONSE, {
+            "command": "write", "name": None, "value": None, "error": "missing name"
+        })
+        return
+    ok = db.synch_write(name, value)
+    common.publish(common.TOPIC_DATA_RESPONSE, {
+        "command": "write", "name": name, "success": ok
+    })
+    if ok:
+        print(f"[Data] setData({name}, {value}) 已更新 synch")
+    else:
+        print(f"[Data] setData({name}, {value}) 失败：未找到 write 条目")
 
 
 # ═══════════════════════════════════════════════════════════
@@ -195,6 +253,9 @@ def main():
 
     # 7. 启动 Modbus 轮询线程（按配置 rate 周期读取寄存器）
     modbus.start_polling_thread()
+
+    # 8. 启动 S7 轮询线程（按配置 rate 周期读取 DB 块）
+    s7.start_polling_thread()
 
     print("\n[主循环] 服务已就绪，等待命令...")
     print("-" * 60)

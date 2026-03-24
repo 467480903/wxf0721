@@ -34,6 +34,92 @@ _mem_conn = None
 _file_conn = None
 _db_lock = threading.Lock()
 
+# ═══════════════════════════════════════════════════════════
+#  synch 全局变量 — Modbus / S7 数据同步区
+# ═══════════════════════════════════════════════════════════
+# 结构：
+#   {type: "modbus"/"s7", action: "read"/"write",
+#    address: int, name: str, value: 任意,
+#    state: int}
+# read  state: 0=初始, 1=已同步
+# write state: 0=未同步(初始), 1=被写入新值待同步, 2=已同步到设备
+synch = []
+_synch_lock = threading.Lock()
+
+
+def synch_add(item):
+    """添加一个 synch 条目（按 name 去重）"""
+    with _synch_lock:
+        for existing in synch:
+            if existing["name"] == item["name"]:
+                return
+        synch.append(item)
+
+
+def synch_find(name):
+    """按 name 查找 synch 条目"""
+    with _synch_lock:
+        for item in synch:
+            if item["name"] == name:
+                return item
+        return None
+
+
+def synch_read(name):
+    """读取 synch 中 name 对应的 value（read 类优先）"""
+    with _synch_lock:
+        for item in synch:
+            if item["name"] == name:
+                return item.get("value")
+        return None
+
+
+def synch_write(name, value):
+    """设置 write 类条目的 value，state 置为 1（待同步）"""
+    with _synch_lock:
+        for item in synch:
+            if item["name"] == name and item["action"] == "write":
+                item["value"] = value
+                item["state"] = 1
+                return True
+        return False
+
+
+def synch_get_pending_writes(prot_type):
+    """获取指定协议类型下 state==1 的 write 条目列表（浅拷贝）"""
+    with _synch_lock:
+        return [
+            dict(item) for item in synch
+            if item["type"] == prot_type and item["action"] == "write" and item.get("state") == 1
+        ]
+
+
+def synch_update_read(name, value):
+    """更新 read 类条目的 value 并标记 state=1（已同步）"""
+    with _synch_lock:
+        for item in synch:
+            if item["name"] == name and item["action"] == "read":
+                item["value"] = value
+                item["state"] = 1
+                return True
+        return False
+
+
+def synch_mark_synced(name):
+    """将 write 条目标记为 state=2（已同步到设备）"""
+    with _synch_lock:
+        for item in synch:
+            if item["name"] == name and item["action"] == "write":
+                item["state"] = 2
+                return True
+        return False
+
+
+def synch_snapshot():
+    """返回 synch 列表的浅拷贝快照"""
+    with _synch_lock:
+        return [dict(item) for item in synch]
+
 
 # ═══════════════════════════════════════════════════════════
 #  数据库初始化

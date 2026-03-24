@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-modbus.py — Modbus TCP 读写组件
+modbus.py — Modbus TCP 读写组件（synch 同步版）
 
 职责：
-  - 加载 datas/modbus.json 配置
-  - 后台线程按 rate 周期读取 holding registers，发布到 /humanoid/modbus/data
-  - 接收 /humanoid/modbus/control 命令：
-      read             手动触发一次读取并发布
-      write            写入指定地址的 holding register
-      add_device       增加新设备
-      add_read_addrs   为设备增加读取地址范围
-      add_write_addrs  为设备增加写入地址范围
-      del_read_addr    删除设备的读取地址
-      del_write_addr   删除设备的写入地址
+  - 加载 datas/modbus.json 配置，初始化 data.synch 中的 modbus 条目
+  - 后台线程按 rate 周期读取 holding registers
+      → 更新 data.synch 中 read 条目的 value（state=1）
+      → 发布到 /humanoid/modbus/data（供 Web 前端显示）
+  - 后台线程周期扫描 synch 中 state==1 的 write 条目
+      → 写入 Modbus 设备 → 标记 state=2
+  - 接收 /humanoid/modbus/control 命令（设备管理类：add_device 等）
 
 消息格式（/humanoid/modbus/data，发布）：
   {"command": "modbus_data", "devices": [
@@ -31,6 +28,7 @@ import struct
 import threading
 
 import common
+import data as db
 
 # ── 配置 ───────────────────────────────────────────────────
 _CONFIG_PATH = os.path.join(common.DATAS_DIR, "modbus.json")
@@ -140,15 +138,22 @@ def _group_continuous(addresses):
 
 
 def _save_config():
-    """将当前 _devices 写回 modbus.json"""
+    """将当前 _devices 写回 modbus.json（含 names）"""
     try:
         raw = []
         for dev in _devices:
             raw.append({
+                "name": dev.get("name", ""),
                 "ip": dev["ip"],
                 "port": dev["port"],
-                "read": {"holdings": sorted(dev["read_holdings"])},
-                "write": {"holdings": sorted(dev["write_holdings"])},
+                "read": {
+                    "holdings": sorted(dev["read_holdings"]),
+                    "names": dev.get("read_names", []),
+                },
+                "write": {
+                    "holdings": sorted(dev["write_holdings"]),
+                    "names": dev.get("write_names", []),
+                },
                 "rate": dev["rate"]
             })
         with open(_CONFIG_PATH, "w", encoding="utf-8") as f:
@@ -159,9 +164,19 @@ def _save_config():
 
 
 def _publish_device(dev):
-    """立即读取并发布单个设备的数据"""
+    """立即读取并发布单个设备的数据（供 Web 前端），同时更新 synch"""
     try:
         read_result, write_result = _read_device(dev)
+
+        # ── 更新 synch 中 read 条目的值 ──────────────────
+        read_names = dev.get("read_names", [])
+        read_addrs = dev["read_holdings"]
+        for i, addr in enumerate(read_addrs):
+            name = read_names[i] if i < len(read_names) else None
+            if name:
+                val = next((r["value"] for r in read_result if r["address"] == addr), None)
+                db.synch_update_read(name, val)
+
         common.publish(common.TOPIC_MODBUS_DATA, {
             "command": "modbus_data",
             "devices": [{
@@ -175,12 +190,41 @@ def _publish_device(dev):
         print(f"[Modbus] 读取 {dev['ip']} 失败: {e}")
 
 
+def _process_pending_writes(dev):
+    """扫描 synch 中该设备 state==1 的 write 条目，写入设备"""
+    pending = db.synch_get_pending_writes("modbus")
+    if not pending:
+        return
+
+    client = ModbusTcpClient(dev["ip"], dev["port"])
+    write_addrs = dev["write_holdings"]
+    write_names = dev.get("write_names", [])
+    write_addr_map = {}  # name → address
+    for i, addr in enumerate(write_addrs):
+        name = write_names[i] if i < len(write_names) else None
+        if name:
+            write_addr_map[name] = addr
+
+    for item in pending:
+        name = item["name"]
+        if name not in write_addr_map:
+            continue
+        addr = write_addr_map[name]
+        value = item["value"]
+        ok = client.write_holding_register(addr, value)
+        if ok:
+            db.synch_mark_synced(name)
+            print(f"[Modbus] synch 写入成功 {dev['ip']}:{addr} ({name}) = {value}")
+        else:
+            print(f"[Modbus] synch 写入失败 {dev['ip']}:{addr} ({name})")
+
+
 # ═══════════════════════════════════════════════════════════
-#  配置加载
+#  配置加载 + synch 初始化
 # ═══════════════════════════════════════════════════════════
 
 def load_config():
-    """加载 modbus.json 配置"""
+    """加载 modbus.json 配置并初始化 synch 条目"""
     global _devices
     _devices = []
     if not os.path.exists(_CONFIG_PATH):
@@ -190,14 +234,47 @@ def load_config():
         with open(_CONFIG_PATH, "r", encoding="utf-8") as f:
             raw = json.load(f)
         for dev in raw:
+            read_holdings = dev.get("read", {}).get("holdings", [])
+            read_names = dev.get("read", {}).get("names", [])
+            write_holdings = dev.get("write", {}).get("holdings", [])
+            write_names = dev.get("write", {}).get("names", [])
+
             _devices.append({
+                "name": dev.get("name", ""),
                 "ip": dev.get("ip", "127.0.0.1"),
                 "port": dev.get("port", 502),
-                "read_holdings": dev.get("read", {}).get("holdings", []),
-                "write_holdings": dev.get("write", {}).get("holdings", []),
+                "read_holdings": read_holdings,
+                "read_names": read_names,
+                "write_holdings": write_holdings,
+                "write_names": write_names,
                 "rate": dev.get("rate", 1000),
             })
-        print(f"[Modbus] 已加载 {len(_devices)} 个设备配置")
+
+            # ── 初始化 synch 中的 read 条目 ──────────────────
+            for i, addr in enumerate(read_holdings):
+                name = read_names[i] if i < len(read_names) else f"modbus_r_{addr}"
+                db.synch_add({
+                    "type": "modbus",
+                    "action": "read",
+                    "address": addr,
+                    "name": name,
+                    "value": 0,
+                    "state": 0,
+                })
+
+            # ── 初始化 synch 中的 write 条目 ─────────────────
+            for i, addr in enumerate(write_holdings):
+                name = write_names[i] if i < len(write_names) else f"modbus_w_{addr}"
+                db.synch_add({
+                    "type": "modbus",
+                    "action": "write",
+                    "address": addr,
+                    "name": name,
+                    "value": 0,
+                    "state": 0,
+                })
+
+        print(f"[Modbus] 已加载 {len(_devices)} 个设备配置, synch 条目已初始化")
     except Exception as e:
         print(f"[Modbus] 加载配置失败: {e}")
 
@@ -236,11 +313,21 @@ def _read_device(dev):
 
 
 def read_and_publish():
-    """读取所有设备数据并发布到 MQTT"""
+    """读取所有设备数据、更新 synch、发布到 MQTT"""
     with _lock:
         devices_data = []
         for dev in _devices:
             read_result, write_result = _read_device(dev)
+
+            # 更新 synch read 条目
+            read_names = dev.get("read_names", [])
+            read_addrs = dev["read_holdings"]
+            for i, addr in enumerate(read_addrs):
+                name = read_names[i] if i < len(read_names) else None
+                if name:
+                    val = next((r["value"] for r in read_result if r["address"] == addr), None)
+                    db.synch_update_read(name, val)
+
             devices_data.append({
                 "ip": dev["ip"],
                 "port": dev["port"],
@@ -254,17 +341,21 @@ def read_and_publish():
 
 
 # ═══════════════════════════════════════════════════════════
-#  后台轮询线程
+#  后台轮询线程（读取 + 写入同步）
 # ═══════════════════════════════════════════════════════════
 
 def _polling_loop():
-    """按各设备 rate 周期读取并发布数据"""
+    """按各设备 rate 周期读取数据 + 扫描写入 synch 待同步条目"""
     global _thread_running
     print("[Modbus] 轮询线程已启动")
     next_times = {}
+    write_scan_interval = 0.05   # 写入扫描间隔 50ms
+    last_write_scan = 0.0
     while _thread_running:
         now = time.time()
         any_due = False
+
+        # ── 读取轮询 ──────────────────────────────────────
         with _lock:
             devs_snapshot = list(_devices)
         for dev in devs_snapshot:
@@ -278,6 +369,16 @@ def _polling_loop():
                 except Exception as e:
                     print(f"[Modbus] 读取 {dev['ip']} 失败: {e}")
                 next_times[key] = now + dev["rate"] / 1000.0
+
+        # ── 写入扫描 ──────────────────────────────────────
+        if now - last_write_scan >= write_scan_interval:
+            last_write_scan = now
+            for dev in devs_snapshot:
+                try:
+                    _process_pending_writes(dev)
+                except Exception as e:
+                    print(f"[Modbus] 写入扫描 {dev['ip']} 失败: {e}")
+
         if not any_due:
             time.sleep(0.01)
         else:
@@ -306,11 +407,11 @@ def stop_polling_thread():
 
 
 # ═══════════════════════════════════════════════════════════
-#  命令处理
+#  命令处理（设备管理类）
 # ═══════════════════════════════════════════════════════════
 
 def handle_control(payload):
-    """处理 /humanoid/modbus/control 命令"""
+    """处理 /humanoid/modbus/control 命令（设备管理类）"""
     cmd = payload.get("command")
     print(f"\n[命令] modbus/control: {cmd}")
 
@@ -359,15 +460,17 @@ def handle_control(payload):
                     print(f"[Modbus] 设备已存在: {ip}:{port}")
                     return
             _devices.append({
+                "name": data.get("name", ""),
                 "ip": ip,
                 "port": port,
                 "read_holdings": [],
+                "read_names": [],
                 "write_holdings": [],
+                "write_names": [],
                 "rate": rate
             })
         _save_config()
         print(f"[Modbus] 已添加设备: {ip}:{port}")
-        # 立即读取并发布新设备
         with _lock:
             for d in _devices:
                 if d["ip"] == ip and d["port"] == port:
@@ -395,6 +498,12 @@ def handle_control(payload):
             for a in range(start, end + 1):
                 if a not in dev["read_holdings"]:
                     dev["read_holdings"].append(a)
+                    name = f"{dev.get('name','dev')}_r_{a}"
+                    dev["read_names"].append(name)
+                    db.synch_add({
+                        "type": "modbus", "action": "read",
+                        "address": a, "name": name, "value": 0, "state": 0,
+                    })
                     added += 1
         _save_config()
         print(f"[Modbus] 设备 {ip} 读取区增加 {added} 个地址 [{start}-{end}]")
@@ -421,6 +530,12 @@ def handle_control(payload):
             for a in range(start, end + 1):
                 if a not in dev["write_holdings"]:
                     dev["write_holdings"].append(a)
+                    name = f"{dev.get('name','dev')}_w_{a}"
+                    dev["write_names"].append(name)
+                    db.synch_add({
+                        "type": "modbus", "action": "write",
+                        "address": a, "name": name, "value": 0, "state": 0,
+                    })
                     added += 1
         _save_config()
         print(f"[Modbus] 设备 {ip} 写入区增加 {added} 个地址 [{start}-{end}]")
@@ -443,7 +558,10 @@ def handle_control(payload):
                 print(f"[Modbus] 未找到设备: {ip}")
                 return
             if address in dev["read_holdings"]:
-                dev["read_holdings"].remove(address)
+                idx = dev["read_holdings"].index(address)
+                dev["read_holdings"].pop(idx)
+                if idx < len(dev["read_names"]):
+                    dev["read_names"].pop(idx)
                 print(f"[Modbus] 设备 {ip} 删除读取地址 {address}")
             else:
                 print(f"[Modbus] 地址 {address} 不在读取列表中")
@@ -468,7 +586,10 @@ def handle_control(payload):
                 print(f"[Modbus] 未找到设备: {ip}")
                 return
             if address in dev["write_holdings"]:
-                dev["write_holdings"].remove(address)
+                idx = dev["write_holdings"].index(address)
+                dev["write_holdings"].pop(idx)
+                if idx < len(dev["write_names"]):
+                    dev["write_names"].pop(idx)
                 print(f"[Modbus] 设备 {ip} 删除写入地址 {address}")
             else:
                 print(f"[Modbus] 地址 {address} 不在写入列表中")

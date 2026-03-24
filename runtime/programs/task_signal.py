@@ -93,7 +93,7 @@ def log(msg):
 # ═══════════════════════════════════════════════════════════
 
 class ModbusTcp:
-    """轻量级 Modbus TCP 客户端（纯 socket，无第三方依赖）"""
+    """轻量级 Modbus TCP 客户端（只用系统自带 socket，不需要安装其他库）"""
 
     def __init__(self, ip, port=10502, unit_id=1, timeout=1.0):
         self.ip = ip

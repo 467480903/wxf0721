@@ -1,0 +1,42 @@
+[
+  {
+    "name": "s1200",
+    "ip": "10.2.250.27",
+    "port": 10502,
+    "read": [
+      {
+        "name": "w1",
+        "addr": "DB1.DBW0",
+        "type": "int"
+      },
+      {
+        "name": "w2",
+        "addr": "DB1.DBW2",
+        "type": "int"
+      },
+      {
+        "name": "w3",
+        "addr": "DB1.DBW4",
+        "type": "int"
+      }
+    ],
+    "write": [
+            {
+        "name": "w1_",
+        "addr": "DB1.DBW10",
+        "type": "int"
+      },
+      {
+        "name": "w2_",
+        "addr": "DB1.DBW12",
+        "type": "int"
+      },
+      {
+        "name": "w3_",
+        "addr": "DB1.DBW14",
+        "type": "int"
+      }
+    ],
+    "rate": 100
+  }
+]
