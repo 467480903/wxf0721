@@ -467,6 +467,21 @@ class G2(_RobotBase):
         print(f"[Minth] WAIST_CORRECT: {joint_name} angle_rad={angle:.4f}")
         return self.JOINT(joint_name, offset=angle)
 
+    def done(self):
+        """发送完成信号
+
+        往 DONE_TOPIC (/humanoid/commands/done) 发送 {"command":"done"}，
+        通知订阅方（如其他脚本/服务）当前任务已完成。
+
+        Returns:
+            bool: True=已发送
+        """
+        payload = {"command": "done"}
+        msg_str = json.dumps(payload, ensure_ascii=False)
+        self._client.publish(DONE_TOPIC, msg_str, qos=2)
+        print(f"[Minth] → over: 完成信号已发送到 {DONE_TOPIC}")
+        return True
+
 
 class X2(_RobotBase):
     """Minth X2 机器人控制类（预留）
