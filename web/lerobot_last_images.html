@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeRobot 最新图片列表</title>
+    <link rel="stylesheet" href="bootstrap.min.css">
+    <style>
+        .episode-card {
+            margin-bottom: 1.5rem;
+        }
+        .image-container {
+            max-height: 300px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .image-container img {
+            max-width: 100%;
+            max-height: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="text-center mb-4">LeRobot 最新图片列表</h1>
+        
+        <!-- 状态显示 -->
+        <div class="alert alert-info text-center mb-4" id="status">连接中...</div>
+        
+        <!-- 图片列表 -->
+        <div class="row" id="images-container">
+            <!-- 图片卡片将在这里动态生成 -->
+        </div>
+    </div>
+    
+    <script src="jquery.min.js"></script>
+    <script src="bootstrap.bundle.min.js"></script>
+    <script src="paho-mqtt.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // MQTT客户端配置
+            const clientId = 'lerobot_images_client_' + Math.random().toString(16).substr(2, 8);
+            const client = new Paho.Client('10.20.15.236', 9001, clientId);
+            
+            // 连接状态
+            let connected = false;
+            
+            // 设置回调函数
+            client.onConnectionLost = onConnectionLost;
+            client.onMessageArrived = onMessageArrived;
+            
+            // 连接参数
+            const connectionOptions = {
+                useSSL: false,
+                onSuccess: onConnect,
+                onFailure: onConnectFailure,
+                reconnect: true,
+                mqttVersion: 4 // MQTT 3.1.1
+            };
+            
+            // 连接到MQTT broker
+            client.connect(connectionOptions);
+            
+            // 连接成功回调
+            function onConnect() {
+                console.log('MQTT连接成功');
+                $('#status').removeClass('alert-info').addClass('alert-success').text('已连接');
+                connected = true;
+                
+                // 订阅图片主题
+                client.subscribe('/lerobot_last_images', { qos: 1 });
+                console.log('已订阅主题: /lerobot_last_images');
+            }
+            
+            // 连接失败回调
+            function onConnectFailure(error) {
+                console.error('MQTT连接失败:', error.errorMessage);
+                $('#status').removeClass('alert-info').addClass('alert-danger').text('连接错误');
+                connected = false;
+            }
+            
+            // 连接丢失回调
+            function onConnectionLost(responseObject) {
+                if (responseObject.errorCode !== 0) {
+                    console.error('MQTT连接丢失:', responseObject.errorMessage);
+                    $('#status').removeClass('alert-info alert-success').addClass('alert-danger').text('已断开连接');
+                    connected = false;
+                }
+            }
+            
+            // 消息到达回调
+            function onMessageArrived(message) {
+                console.log('收到消息:', message.destinationName, ':', message.payloadString);
+                
+                if (message.destinationName === '/lerobot_last_images') {
+                    try {
+                        const imagesData = JSON.parse(message.payloadString);
+                        displayImages(imagesData);
+                    } catch (e) {
+                        console.error('解析图片数据失败:', e);
+                        $('#status').removeClass('alert-info alert-success alert-danger').addClass('alert-warning').text('图片数据格式错误');
+                    }
+                }
+            }
+            
+            // 显示图片
+            function displayImages(imagesData) {
+                const container = $('#images-container');
+                container.empty();
+                
+                if (!imagesData || imagesData.length === 0) {
+                    container.append('<div class="col-12 text-center text-muted">没有找到图片数据</div>');
+                    return;
+                }
+                
+                // 按episode_index排序
+                imagesData.sort((a, b) => a.episode_index - b.episode_index);
+                
+                // 创建图片卡片
+                imagesData.forEach(item => {
+                    if (item.episode_index !== undefined && item.image) {
+                        const card = `
+                            <div class="col-md-4">
+                                <div class="card shadow-sm episode-card">
+                                    <div class="card-header bg-primary text-white">
+                                        <h3 class="h6 mb-0">Episode ${item.episode_index}</h3>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="image-container mb-3">
+                                            <img src="data:image/jpeg;base64,${item.image}" alt="Episode ${item.episode_index}" class="img-fluid rounded">
+                                        </div>
+                                        <div class="text-center">
+                                            <button class="btn btn-sm btn-outline-danger" onclick="deleteFolder(${item.episode_index})">删除文件夹</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        container.append(card);
+                    }
+                });
+                
+                $('#status').removeClass('alert-info alert-danger alert-warning').addClass('alert-success').text(`已加载 ${imagesData.length} 张图片`);
+            }
+            
+            // 发布消息
+            function publish(topic, payload) {
+                if (connected) {
+                    const mqttMessage = new Paho.Message(JSON.stringify(payload));
+                    mqttMessage.destinationName = topic;
+                    mqttMessage.qos = 1;
+                    mqttMessage.retained = false;
+                    client.send(mqttMessage);
+                    console.log('已发布消息到主题:', topic, payload);
+                }
+            }
+            
+            // 删除文件夹函数
+            window.deleteFolder = function(episodeIndex) {
+                if (confirm(`确定要删除 Episode ${episodeIndex} 的文件夹吗？`)) {
+                    publish('/lerobot_last_images_delete', {
+                        episode_index: episodeIndex
+                    });
+                    
+                    // 显示操作反馈
+                    $('#status').removeClass('alert-info alert-success alert-danger').addClass('alert-warning').text(`正在删除 Episode ${episodeIndex}...`);
+                    
+                    // 3秒后恢复状态显示
+                    setTimeout(() => {
+                        if (connected) {
+                            $('#status').removeClass('alert-info alert-danger alert-warning').addClass('alert-success').text('已连接');
+                        } else {
+                            $('#status').removeClass('alert-info alert-success alert-warning').addClass('alert-danger').text('已断开连接');
+                        }
+                    }, 3000);
+                }
+            };
+        });
+    </script>
+</body>
+</html>

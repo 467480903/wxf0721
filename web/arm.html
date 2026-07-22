@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>机械臂末端控制</title>
+    <link rel="stylesheet" href="bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="text-center mb-4">机械臂末端控制</h1>
+        
+        <div class="row">
+            <!-- 左臂控制 -->
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h2 class="h5 mb-0">左臂末端控制</h2>
+                    </div>
+                    <div class="card-body">
+                        <!-- 位置控制 -->
+                        <div class="mb-4">
+                            <h3 class="h6 mb-3">位置控制 (米)</h3>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">X:</span>
+                                </div>
+                                <div class="col-4">
+                                    <span class="bg-light px-3 py-1 rounded" id="left_arm_x">0.000</span>
+                                </div>
+                                <div class="col-5">
+                                    <button class="btn btn-danger btn-sm" onclick="sendArmCommand('left', 'x', -0.001)">-</button>
+                                    <button class="btn btn-success btn-sm ml-2" onclick="sendArmCommand('left', 'x', 0.001)">+</button>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">Y:</span>
+                                </div>
+                                <div class="col-4">
+                                    <span class="bg-light px-3 py-1 rounded" id="left_arm_y">0.000</span>
+                                </div>
+                                <div class="col-5">
+                                    <button class="btn btn-danger btn-sm" onclick="sendArmCommand('left', 'y', -0.001)">-</button>
+                                    <button class="btn btn-success btn-sm ml-2" onclick="sendArmCommand('left', 'y', 0.001)">+</button>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">Z:</span>
+                                </div>
+                                <div class="col-4">
+                                    <span class="bg-light px-3 py-1 rounded" id="left_arm_z">0.000</span>
+                                </div>
+                                <div class="col-5">
+                                    <button class="btn btn-danger btn-sm" onclick="sendArmCommand('left', 'z', -0.001)">-</button>
+                                    <button class="btn btn-success btn-sm ml-2" onclick="sendArmCommand('left', 'z', 0.001)">+</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 姿态显示切换 -->
+                        <div class="mb-4 p-3 bg-light rounded">
+                            <h3 class="h6 mb-3">姿态显示</h3>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="left_orientation" id="left_orientation_rpy" value="rpy" checked>
+                                <label class="form-check-label" for="left_orientation_rpy">RPY (弧度)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="left_orientation" id="left_orientation_quaternion" value="quaternion">
+                                <label class="form-check-label" for="left_orientation_quaternion">四元数</label>
+                            </div>
+                        </div>
+                        
+                        <!-- RPY姿态控制 -->
+                        <div class="mb-4" id="left_arm_rpy">
+                            <h3 class="h6 mb-3">RPY姿态控制</h3>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">RX:</span>
+                                </div>
+                                <div class="col-4">
+                                    <span class="bg-light px-3 py-1 rounded" id="left_arm_rx">0.000</span>
+                                </div>
+                                <div class="col-5">
+                                    <button class="btn btn-danger btn-sm" onclick="sendArmCommand('left', 'rx', -0.01)">-</button>
+                                    <button class="btn btn-success btn-sm ml-2" onclick="sendArmCommand('left', 'rx', 0.01)">+</button>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">RY:</span>
+                                </div>
+                                <div class="col-4">
+                                    <span class="bg-light px-3 py-1 rounded" id="left_arm_ry">0.000</span>
+                                </div>
+                                <div class="col-5">
+                                    <button class="btn btn-danger btn-sm" onclick="sendArmCommand('left', 'ry', -0.01)">-</button>
+                                    <button class="btn btn-success btn-sm ml-2" onclick="sendArmCommand('left', 'ry', 0.01)">+</button>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">RZ:</span>
+                                </div>
+                                <div class="col-4">
+                                    <span class="bg-light px-3 py-1 rounded" id="left_arm_rz">0.000</span>
+                                </div>
+                                <div class="col-5">
+                                    <button class="btn btn-danger btn-sm" onclick="sendArmCommand('left', 'rz', -0.01)">-</button>
+                                    <button class="btn btn-success btn-sm ml-2" onclick="sendArmCommand('left', 'rz', 0.01)">+</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 四元数姿态显示 -->
+                        <div class="mb-4" id="left_arm_quaternion" style="display: none;">
+                            <h3 class="h6 mb-3">四元数姿态</h3>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">X:</span>
+                                </div>
+                                <div class="col-9">
+                                    <span class="bg-light px-3 py-1 rounded" id="left_arm_qx">0.000</span>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">Y:</span>
+                                </div>
+                                <div class="col-9">
+                                    <span class="bg-light px-3 py-1 rounded" id="left_arm_qy">0.000</span>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">Z:</span>
+                                </div>
+                                <div class="col-9">
+                                    <span class="bg-light px-3 py-1 rounded" id="left_arm_qz">0.000</span>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">W:</span>
+                                </div>
+                                <div class="col-9">
+                                    <span class="bg-light px-3 py-1 rounded" id="left_arm_qw">1.000</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 夹爪控制 -->
+                        <div class="p-3 bg-light rounded">
+                            <h3 class="h6 mb-3">夹爪控制</h3>
+                            <div class="mb-3">
+                                <button class="btn btn-success btn-sm mr-2" onclick="sendEndEffectorCommand('left', 'open')">打开</button>
+                                <button class="btn btn-danger btn-sm" onclick="sendEndEffectorCommand('left', 'close')">关闭</button>
+                            </div>
+                            <div class="row">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">状态:</span>
+                                </div>
+                                <div class="col-9">
+                                    <span class="bg-white px-3 py-1 rounded" id="left_gripper_state">open</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右臂控制 -->
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h2 class="h5 mb-0">右臂末端控制</h2>
+                    </div>
+                    <div class="card-body">
+                        <!-- 位置控制 -->
+                        <div class="mb-4">
+                            <h3 class="h6 mb-3">位置控制 (米)</h3>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">X:</span>
+                                </div>
+                                <div class="col-4">
+                                    <span class="bg-light px-3 py-1 rounded" id="right_arm_x">0.000</span>
+                                </div>
+                                <div class="col-5">
+                                    <button class="btn btn-danger btn-sm" onclick="sendArmCommand('right', 'x', -0.001)">-</button>
+                                    <button class="btn btn-success btn-sm ml-2" onclick="sendArmCommand('right', 'x', 0.001)">+</button>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">Y:</span>
+                                </div>
+                                <div class="col-4">
+                                    <span class="bg-light px-3 py-1 rounded" id="right_arm_y">0.000</span>
+                                </div>
+                                <div class="col-5">
+                                    <button class="btn btn-danger btn-sm" onclick="sendArmCommand('right', 'y', -0.001)">-</button>
+                                    <button class="btn btn-success btn-sm ml-2" onclick="sendArmCommand('right', 'y', 0.001)">+</button>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">Z:</span>
+                                </div>
+                                <div class="col-4">
+                                    <span class="bg-light px-3 py-1 rounded" id="right_arm_z">0.000</span>
+                                </div>
+                                <div class="col-5">
+                                    <button class="btn btn-danger btn-sm" onclick="sendArmCommand('right', 'z', -0.001)">-</button>
+                                    <button class="btn btn-success btn-sm ml-2" onclick="sendArmCommand('right', 'z', 0.001)">+</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 姿态显示切换 -->
+                        <div class="mb-4 p-3 bg-light rounded">
+                            <h3 class="h6 mb-3">姿态显示</h3>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="right_orientation" id="right_orientation_rpy" value="rpy" checked>
+                                <label class="form-check-label" for="right_orientation_rpy">RPY (弧度)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="right_orientation" id="right_orientation_quaternion" value="quaternion">
+                                <label class="form-check-label" for="right_orientation_quaternion">四元数</label>
+                            </div>
+                        </div>
+                        
+                        <!-- RPY姿态控制 -->
+                        <div class="mb-4" id="right_arm_rpy">
+                            <h3 class="h6 mb-3">RPY姿态控制</h3>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">RX:</span>
+                                </div>
+                                <div class="col-4">
+                                    <span class="bg-light px-3 py-1 rounded" id="right_arm_rx">0.000</span>
+                                </div>
+                                <div class="col-5">
+                                    <button class="btn btn-danger btn-sm" onclick="sendArmCommand('right', 'rx', -0.01)">-</button>
+                                    <button class="btn btn-success btn-sm ml-2" onclick="sendArmCommand('right', 'rx', 0.01)">+</button>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">RY:</span>
+                                </div>
+                                <div class="col-4">
+                                    <span class="bg-light px-3 py-1 rounded" id="right_arm_ry">0.000</span>
+                                </div>
+                                <div class="col-5">
+                                    <button class="btn btn-danger btn-sm" onclick="sendArmCommand('right', 'ry', -0.01)">-</button>
+                                    <button class="btn btn-success btn-sm ml-2" onclick="sendArmCommand('right', 'ry', 0.01)">+</button>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">RZ:</span>
+                                </div>
+                                <div class="col-4">
+                                    <span class="bg-light px-3 py-1 rounded" id="right_arm_rz">0.000</span>
+                                </div>
+                                <div class="col-5">
+                                    <button class="btn btn-danger btn-sm" onclick="sendArmCommand('right', 'rz', -0.01)">-</button>
+                                    <button class="btn btn-success btn-sm ml-2" onclick="sendArmCommand('right', 'rz', 0.01)">+</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 四元数姿态显示 -->
+                        <div class="mb-4" id="right_arm_quaternion" style="display: none;">
+                            <h3 class="h6 mb-3">四元数姿态</h3>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">X:</span>
+                                </div>
+                                <div class="col-9">
+                                    <span class="bg-light px-3 py-1 rounded" id="right_arm_qx">0.000</span>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">Y:</span>
+                                </div>
+                                <div class="col-9">
+                                    <span class="bg-light px-3 py-1 rounded" id="right_arm_qy">0.000</span>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">Z:</span>
+                                </div>
+                                <div class="col-9">
+                                    <span class="bg-light px-3 py-1 rounded" id="right_arm_qz">0.000</span>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">W:</span>
+                                </div>
+                                <div class="col-9">
+                                    <span class="bg-light px-3 py-1 rounded" id="right_arm_qw">1.000</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 夹爪控制 -->
+                        <div class="p-3 bg-light rounded">
+                            <h3 class="h6 mb-3">夹爪控制</h3>
+                            <div class="mb-3">
+                                <button class="btn btn-success btn-sm mr-2" onclick="sendEndEffectorCommand('right', 'open')">打开</button>
+                                <button class="btn btn-danger btn-sm" onclick="sendEndEffectorCommand('right', 'close')">关闭</button>
+                            </div>
+                            <div class="row">
+                                <div class="col-3">
+                                    <span class="font-weight-bold">状态:</span>
+                                </div>
+                                <div class="col-9">
+                                    <span class="bg-white px-3 py-1 rounded" id="right_gripper_state">open</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 状态显示 -->
+        <div class="alert alert-info text-center" id="status">连接中...</div>
+    </div>
+    
+    <script src="jquery.min.js"></script>
+    <script src="bootstrap.bundle.min.js"></script>
+    <script src="paho-mqtt.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // MQTT客户端配置
+            const clientId = 'arm_client_' + Math.random().toString(16).substr(2, 8);
+            const client = new Paho.Client('10.20.15.236', 9001, clientId);
+            
+            // 连接状态
+            let connected = false;
+            
+            // 臂数据存储
+            let armData = {
+                left: {
+                    position: { x: 0, y: 0, z: 0 },
+                    orientation: { rx: 0, ry: 0, rz: 0 },
+                    quaternion: { x: 0, y: 0, z: 0, w: 1 }
+                },
+                right: {
+                    position: { x: 0, y: 0, z: 0 },
+                    orientation: { rx: 0, ry: 0, rz: 0 },
+                    quaternion: { x: 0, y: 0, z: 0, w: 1 }
+                }
+            };
+            
+            // 夹爪状态
+            let gripperState = {
+                left: 'open',
+                right: 'open'
+            };
+            
+            // 设置回调函数
+            client.onConnectionLost = onConnectionLost;
+            client.onMessageArrived = onMessageArrived;
+            
+            // 连接参数
+            const connectionOptions = {
+                useSSL: false,
+                onSuccess: onConnect,
+                onFailure: onConnectFailure,
+                reconnect: true,
+                mqttVersion: 4 // MQTT 3.1.1
+            };
+            
+            // 连接到MQTT broker
+            client.connect(connectionOptions);
+            
+            // 姿态显示切换事件
+            $('input[name="left_orientation"]').change(function() {
+                toggleOrientation('left', $(this).val());
+            });
+            
+            $('input[name="right_orientation"]').change(function() {
+                toggleOrientation('right', $(this).val());
+            });
+            
+            // 连接成功回调
+            function onConnect() {
+                console.log('MQTT连接成功');
+                $('#status').removeClass('alert-info').addClass('alert-success').text('已连接');
+                connected = true;
+                
+                // 订阅相关主题
+                client.subscribe('/arms_read', { qos: 1 });
+                client.subscribe('/end_effector_read', { qos: 1 });
+                console.log('已订阅主题: /arms_read, /end_effector_read');
+            }
+            
+            // 连接失败回调
+            function onConnectFailure(error) {
+                console.error('MQTT连接失败:', error.errorMessage);
+                $('#status').removeClass('alert-info').addClass('alert-danger').text('连接错误');
+                connected = false;
+            }
+            
+            // 连接丢失回调
+            function onConnectionLost(responseObject) {
+                if (responseObject.errorCode !== 0) {
+                    console.error('MQTT连接丢失:', responseObject.errorMessage);
+                    $('#status').removeClass('alert-info alert-success').addClass('alert-danger').text('已断开连接');
+                    connected = false;
+                }
+            }
+            
+            // 消息到达回调
+            function onMessageArrived(message) {
+                console.log('收到消息:', message.destinationName, ':', message.payloadString);
+                
+                if (message.destinationName === '/arms_read') {
+                    try {
+                        const payload = JSON.parse(message.payloadString);
+                        updateArmData(payload);
+                    } catch (e) {
+                        console.error('解析臂数据失败:', e);
+                    }
+                } else if (message.destinationName === '/end_effector_read') {
+                    try {
+                        const payload = JSON.parse(message.payloadString);
+                        updateEndEffectorData(payload);
+                    } catch (e) {
+                        console.error('解析夹爪数据失败:', e);
+                    }
+                }
+            }
+            
+            // 发布消息
+            function publish(topic, payload) {
+                if (connected) {
+                    const mqttMessage = new Paho.Message(JSON.stringify(payload));
+                    mqttMessage.destinationName = topic;
+                    mqttMessage.qos = 1;
+                    mqttMessage.retained = false;
+                    client.send(mqttMessage);
+                    console.log('已发布消息到主题:', topic, payload);
+                }
+            }
+            
+            // 更新臂数据显示
+            function updateArmData(data) {
+                for (const [arm, armInfo] of Object.entries(data)) {
+                    if (armData[arm]) {
+                        // 更新位置
+                        armData[arm].position = armInfo.position;
+                        $(`#${arm}_arm_x`).text(armInfo.position.x.toFixed(3));
+                        $(`#${arm}_arm_y`).text(armInfo.position.y.toFixed(3));
+                        $(`#${arm}_arm_z`).text(armInfo.position.z.toFixed(3));
+                        
+                        // 更新RPY
+                        armData[arm].orientation = armInfo.orientation;
+                        $(`#${arm}_arm_rx`).text(armInfo.orientation.rx.toFixed(3));
+                        $(`#${arm}_arm_ry`).text(armInfo.orientation.ry.toFixed(3));
+                        $(`#${arm}_arm_rz`).text(armInfo.orientation.rz.toFixed(3));
+                        
+                        // 更新四元数
+                        armData[arm].quaternion = armInfo.quaternion;
+                        $(`#${arm}_arm_qx`).text(armInfo.quaternion.x.toFixed(3));
+                        $(`#${arm}_arm_qy`).text(armInfo.quaternion.y.toFixed(3));
+                        $(`#${arm}_arm_qz`).text(armInfo.quaternion.z.toFixed(3));
+                        $(`#${arm}_arm_qw`).text(armInfo.quaternion.w.toFixed(3));
+                    }
+                }
+            }
+            
+            // 更新夹爪数据显示
+            function updateEndEffectorData(data) {
+                for (const [arm, state] of Object.entries(data)) {
+                    gripperState[arm] = state;
+                    $(`#${arm}_gripper_state`).text(state);
+                }
+            }
+            
+            // 切换姿态显示
+            function toggleOrientation(arm, type) {
+                const rpyElement = $(`#${arm}_arm_rpy`);
+                const quaternionElement = $(`#${arm}_arm_quaternion`);
+                
+                if (type === 'rpy') {
+                    rpyElement.show();
+                    quaternionElement.hide();
+                } else {
+                    rpyElement.hide();
+                    quaternionElement.show();
+                }
+            }
+            
+            // 发送臂控制命令
+            window.sendArmCommand = function(arm, axis, delta) {
+                const command = {
+                    arm: arm,
+                    x: armData[arm].position.x,
+                    y: armData[arm].position.y,
+                    z: armData[arm].position.z,
+                    rx: armData[arm].orientation.rx,
+                    ry: armData[arm].orientation.ry,
+                    rz: armData[arm].orientation.rz
+                };
+                
+                // 根据轴类型更新对应的值
+                if (['x', 'y', 'z'].includes(axis)) {
+                    command[axis] += delta;
+                } else if (['rx', 'ry', 'rz'].includes(axis)) {
+                    command[axis] += delta;
+                }
+                
+                publish('/arm_set', command);
+            };
+            
+            // 发送夹爪控制命令
+            window.sendEndEffectorCommand = function(arm, action) {
+                publish('/end_effector_set', {
+                    arm: arm,
+                    action: action
+                });
+            };
+        });
+    </script>
+</body>
+</html>

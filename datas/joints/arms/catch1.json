@@ -1,0 +1,16 @@
+{
+  "idx21_arm_l_joint1": 0.820132,
+  "idx22_arm_l_joint2": -1.062793,
+  "idx23_arm_l_joint3": -1.570005,
+  "idx24_arm_l_joint4": -1.677544,
+  "idx25_arm_l_joint5": -0.471291,
+  "idx26_arm_l_joint6": 0.680147,
+  "idx27_arm_l_joint7": 0.056557,
+  "idx61_arm_r_joint1": -0.750316,
+  "idx62_arm_r_joint2": -1.101147,
+  "idx63_arm_r_joint3": 1.548038,
+  "idx64_arm_r_joint4": -1.606455,
+  "idx65_arm_r_joint5": 0.34495500000000007,
+  "idx66_arm_r_joint6": 0.695453,
+  "idx67_arm_r_joint7": 0.037179000000000004
+}

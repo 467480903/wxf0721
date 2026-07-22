@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeRobot 数据采集</title>
+    <link rel="stylesheet" href="bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="text-center mb-4">LeRobot 数据采集控制</h1>
+        
+        <div class="row justify-content-center mb-4">
+            <div class="col-md-6 text-center">
+                <button class="btn btn-success btn-lg mr-4" onclick="sendCollectionCommand('start')">开始采集</button>
+                <button class="btn btn-danger btn-lg" onclick="sendCollectionCommand('stop')">结束采集</button>
+            </div>
+        </div>
+        
+        <!-- 相机图像显示 -->
+        <div class="row mb-4">
+            <!-- 头部相机 -->
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h2 class="h5 mb-0">头部实时图片</h2>
+                    </div>
+                    <div class="card-body text-center">
+                        <img id="head_camera" src="" alt="头部相机" class="img-fluid rounded" style="max-height: 400px;">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右手腕部相机 -->
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h2 class="h5 mb-0">右手腕部相机</h2>
+                    </div>
+                    <div class="card-body text-center">
+                        <img id="right_hand_camera" src="/hand_right_color" alt="右手腕部相机" class="img-fluid rounded" style="max-height: 400px;">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 状态显示 -->
+        <div class="alert alert-info text-center mt-4" id="status">连接中...</div>
+    </div>
+    
+    <script src="jquery.min.js"></script>
+    <script src="bootstrap.bundle.min.js"></script>
+    <script src="paho-mqtt.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // 设置相机图片URL
+            const currentHost = window.location.hostname;
+            const cameraPort = 8000;
+            const headCameraUrl = `http://${currentHost}:${cameraPort}/head_color`;
+            const rightHandCameraUrl = `http://${currentHost}:${cameraPort}/hand_right_color`;
+            
+            $('#head_camera').attr('src', headCameraUrl);
+            $('#right_hand_camera').attr('src', rightHandCameraUrl);
+            
+            // MQTT客户端配置
+            const clientId = 'lerobot_client_' + Math.random().toString(16).substr(2, 8);
+            const client = new Paho.Client('10.20.15.178', 9001, clientId);
+            
+            // 连接状态
+            let connected = false;
+            
+            // 设置回调函数
+            client.onConnectionLost = onConnectionLost;
+            client.onMessageArrived = onMessageArrived;
+            
+            // 连接参数
+            const connectionOptions = {
+                useSSL: false,
+                onSuccess: onConnect,
+                onFailure: onConnectFailure,
+                reconnect: true,
+                mqttVersion: 4 // MQTT 3.1.1
+            };
+            
+            // 连接到MQTT broker
+            client.connect(connectionOptions);
+            
+            // 连接成功回调
+            function onConnect() {
+                console.log('MQTT连接成功');
+                $('#status').removeClass('alert-info').addClass('alert-success').text('已连接');
+                connected = true;
+            }
+            
+            // 连接失败回调
+            function onConnectFailure(error) {
+                console.error('MQTT连接失败:', error.errorMessage);
+                $('#status').removeClass('alert-info').addClass('alert-danger').text('连接错误');
+                connected = false;
+            }
+            
+            // 连接丢失回调
+            function onConnectionLost(responseObject) {
+                if (responseObject.errorCode !== 0) {
+                    console.error('MQTT连接丢失:', responseObject.errorMessage);
+                    $('#status').removeClass('alert-info alert-success').addClass('alert-danger').text('已断开连接');
+                    connected = false;
+                }
+            }
+            
+            // 消息到达回调
+            function onMessageArrived(message) {
+                console.log('收到消息:', message.destinationName, ':', message.payloadString);
+            }
+            
+            // 发布消息
+            function publish(topic, payload) {
+                if (connected) {
+                    const mqttMessage = new Paho.Message(JSON.stringify(payload));
+                    mqttMessage.destinationName = topic;
+                    mqttMessage.qos = 1;
+                    mqttMessage.retained = false;
+                    client.send(mqttMessage);
+                    console.log('已发布消息到主题:', topic, payload);
+                }
+            }
+            
+            // 发送采集命令
+            window.sendCollectionCommand = function(cmd) {
+                publish('/record_lerobot_dataset', { cmd: cmd });
+                
+                // 显示操作反馈
+                const actionText = cmd === 'start' ? '开始采集' : '结束采集';
+                const originalText = $('#status').text();
+                $('#status').removeClass('alert-info alert-success alert-danger').addClass('alert-warning').text(`正在执行: ${actionText}...`);
+                
+                // 3秒后恢复状态显示
+                setTimeout(() => {
+                    if (connected) {
+                        $('#status').removeClass('alert-info alert-danger alert-warning').addClass('alert-success').text('已连接');
+                    } else {
+                        $('#status').removeClass('alert-info alert-success alert-warning').addClass('alert-danger').text('已断开连接');
+                    }
+                }, 3000);
+            };
+        });
+    </script>
+</body>
+</html>

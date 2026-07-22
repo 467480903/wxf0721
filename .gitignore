@@ -1,0 +1,3 @@
+services/logs/
+services/__pycache__/
+services/python3.*

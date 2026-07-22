@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>机器人关节控制</title>
+    <link rel="stylesheet" href="bootstrap.min.css">
+    <style>
+        button {
+            width: 60px;
+            height: 60px;
+            font-size: 28px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="text-center mb-4">机器人关节控制</h1>
+        
+        <!-- 控制参数设置 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h5 mb-0">控制参数</h2>
+            </div>
+            <div class="card-body">
+                <div class="row justify-content-center">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <span class="font-weight-bold mr-3">速度 (弧度/秒):</span>
+                            <span class="bg-light px-4 py-2 rounded font-weight-bold mr-3" id="velocityValue">0.3</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger" onclick="adjustVelocity(-0.1)">-</button>
+                                <button class="btn btn-success ml-2" onclick="adjustVelocity(0.1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <span class="font-weight-bold mr-3">步长 (弧度):</span>
+                            <span class="bg-light px-4 py-2 rounded font-weight-bold mr-3" id="stepSizeValue">0.1</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger" onclick="adjustStepSize(-0.01)">-</button>
+                                <button class="btn btn-success ml-2" onclick="adjustStepSize(0.01)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 身体关节 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h2 class="h5 mb-0">身体关节 (5个)</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">身体关节1:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx01_body_joint1">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx01_body_joint1', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx01_body_joint1', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">身体关节2:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx02_body_joint2">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx02_body_joint2', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx02_body_joint2', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">身体关节3:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx03_body_joint3">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx03_body_joint3', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx03_body_joint3', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">身体关节4:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx04_body_joint4">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx04_body_joint4', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx04_body_joint4', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">身体关节5:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx05_body_joint5">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx05_body_joint5', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx05_body_joint5', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 头部关节 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h2 class="h5 mb-0">头部关节 (3个)</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">头部关节1:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx11_head_joint1">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx11_head_joint1', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx11_head_joint1', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">头部关节2:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx12_head_joint2">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx12_head_joint2', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx12_head_joint2', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">头部关节3:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx13_head_joint3">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx13_head_joint3', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx13_head_joint3', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 左臂关节 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h2 class="h5 mb-0">左臂关节 (7个)</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">左臂关节1:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx21_arm_l_joint1">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx21_arm_l_joint1', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx21_arm_l_joint1', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">左臂关节2:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx22_arm_l_joint2">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx22_arm_l_joint2', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx22_arm_l_joint2', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">左臂关节3:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx23_arm_l_joint3">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx23_arm_l_joint3', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx23_arm_l_joint3', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">左臂关节4:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx24_arm_l_joint4">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx24_arm_l_joint4', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx24_arm_l_joint4', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">左臂关节5:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx25_arm_l_joint5">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx25_arm_l_joint5', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx25_arm_l_joint5', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">左臂关节6:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx26_arm_l_joint6">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx26_arm_l_joint6', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx26_arm_l_joint6', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">左臂关节7:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx27_arm_l_joint7">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx27_arm_l_joint7', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx27_arm_l_joint7', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右臂关节 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h2 class="h5 mb-0">右臂关节 (7个)</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">右臂关节1:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx61_arm_r_joint1">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx61_arm_r_joint1', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx61_arm_r_joint1', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">右臂关节2:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx62_arm_r_joint2">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx62_arm_r_joint2', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx62_arm_r_joint2', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">右臂关节3:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx63_arm_r_joint3">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx63_arm_r_joint3', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx63_arm_r_joint3', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">右臂关节4:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx64_arm_r_joint4">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx64_arm_r_joint4', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx64_arm_r_joint4', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">右臂关节5:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx65_arm_r_joint5">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx65_arm_r_joint5', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx65_arm_r_joint5', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">右臂关节6:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx66_arm_r_joint6">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx66_arm_r_joint6', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx66_arm_r_joint6', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="font-weight-bold">右臂关节7:</span>
+                            <span class="bg-light px-3 py-1 rounded font-weight-bold" id="idx67_arm_r_joint7">0.00</span>
+                            <div class="d-flex">
+                                <button class="btn btn-danger btn-sm" onclick="sendJointCommand('idx67_arm_r_joint7', -1)">-</button>
+                                <button class="btn btn-success btn-sm ml-2" onclick="sendJointCommand('idx67_arm_r_joint7', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 状态显示 -->
+        <div class="alert alert-info text-center" id="status">连接中...</div>
+    </div>
+    
+    <script src="jquery.min.js"></script>
+    <script src="bootstrap.bundle.min.js"></script>
+    <script src="paho-mqtt.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // MQTT客户端配置
+            const clientId = 'joints_client_' + Math.random().toString(16).substr(2, 8);
+            const client = new Paho.Client('10.20.15.236', 9001, clientId);
+            
+            // 连接状态
+            let connected = false;
+            
+            // 关节数据存储
+            let jointData = {};
+            
+            // 控制参数
+            let velocity = 0.3;
+            let stepSize = 0.1;
+            
+            // 设置回调函数
+            client.onConnectionLost = onConnectionLost;
+            client.onMessageArrived = onMessageArrived;
+            
+            // 连接参数
+            const connectionOptions = {
+                useSSL: false,
+                onSuccess: onConnect,
+                onFailure: onConnectFailure,
+                reconnect: true,
+                mqttVersion: 4 // MQTT 3.1.1
+            };
+            
+            // 连接到MQTT broker
+            client.connect(connectionOptions);
+            
+            // 连接成功回调
+            function onConnect() {
+                console.log('MQTT连接成功');
+                $('#status').removeClass('alert-info').addClass('alert-success').text('已连接');
+                connected = true;
+                
+                // 订阅关节数据主题
+                client.subscribe('/joints_read', { qos: 1 });
+                console.log('已订阅主题: /joints_read');
+            }
+            
+            // 连接失败回调
+            function onConnectFailure(error) {
+                console.error('MQTT连接失败:', error.errorMessage);
+                $('#status').removeClass('alert-info').addClass('alert-danger').text('连接错误');
+                connected = false;
+            }
+            
+            // 连接丢失回调
+            function onConnectionLost(responseObject) {
+                if (responseObject.errorCode !== 0) {
+                    console.error('MQTT连接丢失:', responseObject.errorMessage);
+                    $('#status').removeClass('alert-info alert-success').addClass('alert-danger').text('已断开连接');
+                    connected = false;
+                }
+            }
+            
+            // 消息到达回调
+            function onMessageArrived(message) {
+                console.log('收到消息:', message.destinationName, ':', message.payloadString);
+                
+                if (message.destinationName === '/joints_read') {
+                    try {
+                        const payload = JSON.parse(message.payloadString);
+                        updateJointData(payload);
+                    } catch (e) {
+                        console.error('解析消息失败:', e);
+                    }
+                }
+            }
+            
+            // 发布消息
+            function publish(topic, payload) {
+                if (connected) {
+                    const mqttMessage = new Paho.Message(JSON.stringify(payload));
+                    mqttMessage.destinationName = topic;
+                    mqttMessage.qos = 1;
+                    mqttMessage.retained = false;
+                    client.send(mqttMessage);
+                    console.log('已发布消息到主题:', topic, payload);
+                }
+            }
+            
+            // 更新关节数据显示
+            function updateJointData(data) {
+                jointData = data;
+                for (const [jointName, value] of Object.entries(data)) {
+                    const element = $(`#${jointName}`);
+                    if (element.length) {
+                        element.text(value.toFixed(2));
+                    }
+                }
+            }
+            
+            // 发送关节控制命令
+            window.sendJointCommand = function(jointName, delta) {
+                // 计算实际步长（根据±按钮和设置的步长值）
+                const actualDelta = delta > 0 ? stepSize : -stepSize;
+                
+                const currentValue = jointData[jointName] || 0;
+                const newValue = currentValue + actualDelta;
+                
+                publish('/joint_set', {
+                    joint_name: jointName,
+                    position: newValue,
+                    velocity: velocity
+                });
+            };
+            
+            // 调整速度
+            window.adjustVelocity = function(delta) {
+                velocity = Math.max(0, velocity + delta);
+                $('#velocityValue').text(velocity.toFixed(1));
+            };
+            
+            // 调整步长
+            window.adjustStepSize = function(delta) {
+                stepSize = Math.max(0.01, stepSize + delta);
+                $('#stepSizeValue').text(stepSize.toFixed(2));
+            };
+        });
+    </script>
+</body>
+</html>
