@@ -1,0 +1,23 @@
+Init glog with processor name:python3.12, pid:1811035
+Initialising DDS
+PTP device /dev/ptp_xgi0 opened successfully
+E0722 16:33:43.224143 1811055 trace_point.cc:17] [python3.12][aorta]failed to open device /dev/ptp_clock! err:No such file or directory
+E0722 16:33:52.518076 1811052 motion_control_impl.cpp:61] [python3.12][GDK]JointControlResponse uuid mismatch
+E0722 16:34:08.096271 1811052 motion_control_impl.cpp:61] [python3.12][GDK]JointControlResponse uuid mismatch
+E0722 16:34:21.360579 1811052 motion_control_impl.cpp:61] [python3.12][GDK]JointControlResponse uuid mismatch
+E0722 16:34:41.212452 1811052 motion_control_impl.cpp:61] [python3.12][GDK]JointControlResponse uuid mismatch
+E0722 16:34:55.726747 1811052 motion_control_impl.cpp:61] [python3.12][GDK]JointControlResponse uuid mismatch
+E0722 16:35:10.235191 1811052 motion_control_impl.cpp:61] [python3.12][GDK]JointControlResponse uuid mismatch
+E0722 16:35:25.543207 1811052 motion_control_impl.cpp:61] [python3.12][GDK]JointControlResponse uuid mismatch
+E0722 16:35:41.597124 1811052 motion_control_impl.cpp:61] [python3.12][GDK]JointControlResponse uuid mismatch
+E0722 16:35:56.887435 1811052 motion_control_impl.cpp:61] [python3.12][GDK]JointControlResponse uuid mismatch
+E0722 16:36:15.096920 1811052 motion_control_impl.cpp:61] [python3.12][GDK]JointControlResponse uuid mismatch
+E0722 16:36:33.905257 1811052 motion_control_impl.cpp:61] [python3.12][GDK]JointControlResponse uuid mismatch
+E0722 16:36:44.493966 1811052 motion_control_impl.cpp:61] [python3.12][GDK]JointControlResponse uuid mismatch
+E0722 16:37:05.156438 1811052 motion_control_impl.cpp:61] [python3.12][GDK]JointControlResponse uuid mismatch
+E0722 16:37:20.454178 1811052 motion_control_impl.cpp:61] [python3.12][GDK]JointControlResponse uuid mismatch
+E0722 16:37:37.381276 1811052 motion_control_impl.cpp:61] [python3.12][GDK]JointControlResponse uuid mismatch
+E0722 16:37:56.441606 1811052 motion_control_impl.cpp:61] [python3.12][GDK]JointControlResponse uuid mismatch
+E0722 19:47:17.563849 1811052 pnc_impl.cpp:127] [python3.12][GDK]Pnc task cancel rsp promise is nullptr
+E0722 19:47:18.568837 1811052 pnc_impl.cpp:194] [python3.12][GDK]Pnc remote control rsp promise is nullptr
+E0722 19:48:20.913944 1811052 pnc_impl.cpp:127] [python3.12][GDK]Pnc task cancel rsp promise is nullptr

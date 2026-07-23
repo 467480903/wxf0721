@@ -1,0 +1,4 @@
+Init glog with processor name:python3.12, pid:1811135
+Initialising DDS
+PTP device /dev/ptp_xgi0 opened successfully
+E0722 16:41:46.186718 1811158 config_manager.cpp:43] [python3.12][GDK]Config response promise is nullptr

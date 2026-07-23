@@ -168,7 +168,7 @@ export default {
             console.log('[底盘] 到位', this.selectedPoint);
         },
         onMapPoints(data) {
-            if (data && data.cmd === 'map_points' && Array.isArray(data.data)) {
+            if (data && data.command === 'map_points' && Array.isArray(data.data)) {
                 this.mapPoints = data.data;
                 console.log('[底盘] 收到', this.mapPoints.length, '个点位');
                 // 自动居中：计算所有点位的中心

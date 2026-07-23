@@ -4,12 +4,19 @@ html, body {
     padding: 0;
     height: 100%;
     overflow: hidden;
-    background: #0c0e12;
-    color: #e8eaed;
+    background: #1a1e26;
+    color: #f0f2f5;
     font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
 }
 
-/* ── 背景 canvas（始终显示，30% 透明度） ─────────── */
+/* ── 全局细滚动条 ────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3a4558; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4d5d74; }
+* { scrollbar-width: thin; scrollbar-color: #3a4558 transparent; }
+
+/* ── 背景 canvas（始终显示，55% 透明度） ─────────── */
 #bg-canvas {
     position: fixed;
     top: 0;
@@ -17,7 +24,7 @@ html, body {
     width: 100%;
     height: 100%;
     z-index: 0;
-    opacity: 0.3;
+    opacity: 0.55;
     pointer-events: auto;   /* 允许鼠标拖曳旋转 3D 模型 */
 }
 
@@ -29,18 +36,25 @@ html, body {
     align-items: center;
     gap: 6px;
     padding: 8px 16px;
-    background: rgba(20, 24, 32, 0.92);
-    border-bottom: 1px solid #2a2f38;
+    background: rgba(30, 36, 48, 0.92);
+    border-bottom: 1px solid #3a4150;
     backdrop-filter: blur(8px);
+}
+.nav-page-title {
+    margin-left: auto;
+    color: #8ecaff;
+    font-size: 15px;
+    letter-spacing: 1px;
+    padding-right: 8px;
 }
 #toolbar .brand {
     display: flex;
     align-items: center;
     gap: 8px;
     font-weight: 700;
-    color: #6cf;
+    color: #7dd3fc;
     margin-right: 16px;
-    font-size: 16px;
+    font-size: 18px;
     cursor: pointer;
     user-select: none;
     padding: 4px 10px;
@@ -48,7 +62,7 @@ html, body {
     transition: background 0.2s;
 }
 #toolbar .brand:hover {
-    background: #1f2630;
+    background: #2a3340;
 }
 #toolbar .brand .brand-logo {
     width: 34px;          /* 只显示左侧 1/3 (102/3≈34) */
@@ -63,16 +77,23 @@ html, body {
     display: block;
 }
 #toolbar button.menu-btn {
-    background: #1f2630;
-    color: #cfd4dc;
-    border: 1px solid #2a313c;
-    padding: 6px 14px;
+    background: #2a3340;
+    color: #e0e4ea;
+    border: 1px solid #3a4150;
+    padding: 7px 16px;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 16px;
     transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
-#toolbar button.menu-btn:hover { background: #2a3340; }
+.menu-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+#toolbar button.menu-btn:hover { background: #384554; }
 #toolbar button.menu-btn.active {
     background: #0d6efd;
     color: #fff;
@@ -94,12 +115,12 @@ html, body {
     top: 100%;
     left: 0;
     margin-top: 4px;
-    background: rgba(20, 24, 32, 0.98);
-    border: 1px solid #2a313c;
+    background: rgba(30, 36, 48, 0.98);
+    border: 1px solid #3a4150;
     border-radius: 4px;
     padding: 4px 0;
-    min-width: 130px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    min-width: 140px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     z-index: 100;
 }
 .dropdown-item {
@@ -107,16 +128,16 @@ html, body {
     width: 100%;
     text-align: left;
     background: transparent;
-    color: #cfd4dc;
+    color: #e0e4ea;
     border: none;
     padding: 8px 16px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 15px;
     transition: background 0.15s;
 }
-.dropdown-item:hover { background: #2a3340; }
+.dropdown-item:hover { background: #384554; }
 .dropdown-item.active {
-    color: #6cf;
+    color: #7dd3fc;
     font-weight: 600;
 }
 
@@ -156,15 +177,15 @@ html, body {
     gap: 8px;
 }
 .coord-sys-label {
-    color: #b0b6c0;
+    color: #c0c6d0;
     font-size: 14px;
     white-space: nowrap;
 }
 .coord-sys-select {
     height: 34px;
-    background: #11151c;
-    color: #e8eaed;
-    border: 1px solid #2a313c;
+    background: #1a1e26;
+    color: #f0f2f5;
+    border: 1px solid #3a4150;
     border-radius: 4px;
     padding: 0 10px;
     font-size: 14px;
@@ -182,19 +203,19 @@ html, body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0,0,0,0.5);
     z-index: 1000;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 .save-dialog {
-    background: rgba(20, 24, 32, 0.98);
-    border: 1px solid #2a313c;
+    background: rgba(30, 36, 48, 0.98);
+    border: 1px solid #3a4150;
     border-radius: 8px;
     padding: 24px 32px;
     min-width: 380px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
 }
 .save-dialog .form-row {
     display: flex;
@@ -205,15 +226,15 @@ html, body {
 .save-dialog .form-row label {
     width: 60px;
     text-align: right;
-    color: #b0b6c0;
+    color: #c0c6d0;
     font-size: 14px;
 }
 .save-dialog .form-row input {
     flex: 1;
     height: 36px;
-    background: #11151c;
-    color: #e8eaed;
-    border: 1px solid #2a313c;
+    background: #1a1e26;
+    color: #f0f2f5;
+    border: 1px solid #3a4150;
     border-radius: 4px;
     padding: 0 10px;
     font-size: 14px;
@@ -243,17 +264,17 @@ html, body {
 
 /* ── 通用面板 ───────────────────────────────────── */
 .panel {
-    background: rgba(28, 33, 42, 0.7);
-    border: 1px solid #2a313c;
+    background: rgba(38, 44, 56, 0.75);
+    border: 1px solid #3a4150;
     border-radius: 8px;
     padding: 18px;
     margin-bottom: 16px;
     backdrop-filter: blur(6px);
 }
 .panel h5 {
-    color: #6cf;
+    color: #7dd3fc;
     margin-bottom: 14px;
-    border-bottom: 1px solid #2a313c;
+    border-bottom: 1px solid #3a4150;
     padding-bottom: 6px;
 }
 
@@ -506,22 +527,13 @@ html, body {
 
 /* ── 关节/坐标数据管理 ─────────────────────────── */
 .djc-panel {
-    max-height: calc(100vh - 80px);
-    overflow-y: auto;
-    padding: 0 16px 12px;
-}
-.djc-title {
-    text-align: center;
-    color: #8ecaff;
-    font-size: 16px;
-    margin: 12px 0 14px;
-    letter-spacing: 1px;
-}
-.djc-toolbar {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
+    flex-direction: column;
+    height: 100%;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 .djc-btn {
     padding: 6px 18px;
@@ -536,15 +548,16 @@ html, body {
 }
 .djc-btn:hover { filter: brightness(1.2); }
 .djc-btn:active { transform: scale(0.97); }
+.djc-btn:disabled { opacity: 0.35; cursor: not-allowed; filter: none; transform: none; }
 .djc-btn-read    { background: #1a3c5c; border-color: #2a5c8c; color: #6cf; }
 .djc-btn-go      { background: #1d6f3a; border-color: #28894a; }
 .djc-btn-update  { background: #5c4a1a; border-color: #8c7a2a; color: #fc6; }
 .djc-btn-delete  { background: #5c1a1a; border-color: #8c2a2a; }
-.djc-count { color: #7a8599; font-size: 13px; }
 .djc-table-wrap {
+    flex: 1;
+    overflow-y: auto;
     overflow-x: auto;
-    border-radius: 6px;
-    border: 1px solid #1f2630;
+    min-height: 0;
 }
 .djc-table {
     width: 100%;
@@ -560,6 +573,9 @@ html, body {
     border-bottom: 1px solid #2a313c;
     font-size: 12px;
     letter-spacing: 1px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 .djc-table td {
     padding: 7px 12px;
@@ -583,20 +599,32 @@ html, body {
     white-space: nowrap;
 }
 .djc-empty {
-    text-align: center;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: #4a5568;
-    padding: 40px;
     font-size: 14px;
 }
 .djc-actionbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 14px;
-    padding: 10px 12px;
-    background: #151a22;
-    border: 1px solid #232b36;
-    border-radius: 6px;
+    flex-shrink: 0;
+    padding: 10px 16px;
+    border-top: 1px solid #232b36;
+    background: rgba(16, 20, 28, 0.5);
+    gap: 12px;
+}
+.djc-left-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.djc-count-bar {
+    color: #6cf;
+    font-size: 13px;
+    font-weight: 600;
 }
 .djc-sel-info {
     color: #9aa4b8;
@@ -605,6 +633,27 @@ html, body {
 .djc-actions {
     display: flex;
     gap: 8px;
+}
+
+/* ── 自定义滚动条 ────────────────────────────────── */
+.djc-table-wrap::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.djc-table-wrap::-webkit-scrollbar-track {
+    background: #151a22;
+    border-radius: 3px;
+}
+.djc-table-wrap::-webkit-scrollbar-thumb {
+    background: #3a4558;
+    border-radius: 3px;
+}
+.djc-table-wrap::-webkit-scrollbar-thumb:hover {
+    background: #4d5d74;
+}
+.djc-table-wrap {
+    scrollbar-width: thin;
+    scrollbar-color: #3a4558 #151a22;
 }
 .teach-joints-panel {
     max-height: calc(100vh - 80px);
@@ -850,29 +899,42 @@ html, body {
 }
 
 /* ── 程序视图 ──────────────────────────────────── */
+.pv-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+.pv-code-wrap {
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+    position: relative;
+}
 .code-block {
-    background: #11151c;
-    border: 1px solid #2a313c;
-    border-radius: 6px;
-    padding: 14px;
-    color: #c8d3e0;
+    background: #0d1117;
+    height: 100%;
+    overflow-y: auto;
+    padding: 12px 0;
+    color: #d8e3f0;
     font-family: "Consolas", monospace;
     font-size: 13px;
     white-space: pre;
-    overflow: auto;
-    max-height: 60vh;
 }
 .code-line {
     display: flex;
-    padding: 1px 0;
-    border-radius: 2px;
+    padding: 1px 16px;
+    border-radius: 0;
 }
 .code-line .line-num {
     display: inline-block;
     width: 40px;
     text-align: right;
     padding-right: 12px;
-    color: #555;
+    color: #4a5568;
     user-select: none;
     flex-shrink: 0;
 }
@@ -881,9 +943,8 @@ html, body {
     padding-left: 8px;
 }
 .code-line-active {
-    background: #3d3a1a;
+    background: #2d2a0a;
     border-left: 3px solid #ff0;
-    margin-left: -3px;
 }
 .code-line-active .line-num {
     color: #ff0;
@@ -893,16 +954,27 @@ html, body {
     color: #ff0;
     font-weight: 600;
 }
-
-.step-info {
-    margin-top: 12px;
-    padding: 8px 14px;
-    background: #1a1d24;
-    border: 1px solid #3d3a1a;
-    border-radius: 4px;
-    color: #b0b6c0;
+.pv-actionbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 10px 16px;
+    border-top: 1px solid #232b36;
+    background: rgba(16, 20, 28, 0.5);
+    gap: 16px;
+}
+.pv-stepinfo {
+    color: #9aa4b8;
     font-size: 13px;
     font-family: "Consolas", monospace;
+    flex-shrink: 0;
+}
+.pv-idle {
+    color: #4a5568;
+}
+.step-info {
+    display: none;
 }
 .step-info .step-line-no {
     color: #ff0;
@@ -913,22 +985,20 @@ html, body {
     color: #6f6;
     margin-left: 10px;
 }
-
 .program-actions {
     display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-    margin-top: 14px;
+    gap: 8px;
+    flex-shrink: 0;
 }
 .program-btn {
-    min-width: 120px;
-    height: 40px;
+    min-width: 90px;
+    height: 36px;
     border: 1px solid #2a313c;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
-    padding: 0 20px;
+    padding: 0 16px;
 }
 .program-btn.read-btn {
     background: #1a3a5c;

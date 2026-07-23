@@ -35,12 +35,17 @@ import threading
 import paho.mqtt.client as mqtt
 
 
-# ── MQTT 配置 ─────────────────────────────────────────────
+# ── MQTT 配置（与 services/main.py 对齐）─────────────────
 MQTT_BROKER = "localhost"
 MQTT_PORT = 1883
-CMD_TOPIC = "/G2_minth_app"
-DONE_TOPIC = "/G2_minth_app_done"
-CAMERA_TOPIC = "/minth/g2/camera"
+# 关节运动命令主题
+JOINTS_TOPIC = "/humanoid/joints/control"
+# 动作命令主题
+COMMANDS_TOPIC = "/humanoid/commands/data"
+# 命令完成通知主题
+DONE_TOPIC = "/humanoid/commands/done"
+# 相机控制主题
+CAMERA_TOPIC = "/humanoid/camera/control"
 
 # 默认超时时间（秒）
 DEFAULT_TIMEOUT = 15
@@ -96,15 +101,25 @@ class _RobotBase:
             self._done_event.set()
 
     # ── 核心：发送命令并等待完成 ────────────────────────────
+    # 关节命令集合（发送到 /humanoid/joints/control）
+    _JOINT_CMDS = {"WBC", "arms", "left", "right", "head", "waist", "joint"}
+
     def _send_and_wait(self, cmd, data=None):
-        """发送命令到 CMD_TOPIC，等待 DONE_TOPIC 回复或超时"""
-        payload = {"cmd": cmd}
+        """发送命令并等待 DONE_TOPIC 回复或超时
+
+        关节命令发送到 /humanoid/joints/control，
+        动作命令发送到 /humanoid/commands/data。
+        """
+        payload = {"command": cmd}
         if data is not None:
             payload["data"] = data
 
+        # 选择目标主题
+        topic = JOINTS_TOPIC if cmd in self._JOINT_CMDS else COMMANDS_TOPIC
+
         self._done_event.clear()
         msg_str = json.dumps(payload, ensure_ascii=False)
-        self._client.publish(CMD_TOPIC, msg_str, qos=2)
+        self._client.publish(topic, msg_str, qos=2)
         print(f"[Minth] → {cmd}: {data}")
 
         done = self._done_event.wait(timeout=self.timeout)
@@ -207,15 +222,15 @@ class G2(_RobotBase):
 
         拍摄头部彩色+深度图，发送给 YOLO 服务进行检测，等待完成后返回。
 
-        通过 MQTT 向 /minth/g2/camera 发送 {"cmd":"detect","yolo":"<model>"}，
-        camera.py 执行完毕后会向 /G2_minth_app_done 发送 {"cmd":"done"}。
+        通过 MQTT 向 /humanoid/camera/control 发送 {"command":"detect","yolo":"<model>"}，
+        camera.py 执行完毕后会向 /humanoid/commands/done 发送 {"command":"done"}。
 
         Args:
             model: YOLO 模型文件名，如 "wxf.pt"、"7.14.pt"
         Returns:
             bool: True=检测完成，False=超时
         """
-        payload = {"cmd": "detect", "yolo": model}
+        payload = {"command": "detect", "yolo": model}
         self._done_event.clear()
         msg_str = json.dumps(payload, ensure_ascii=False)
         self._client.publish(CAMERA_TOPIC, msg_str, qos=2)
@@ -277,7 +292,7 @@ class G2(_RobotBase):
     def JOINT(self, name, offset=None, value=None):
         """单关节控制
 
-        通过 MQTT 向 /G2_minth_app 发送 joint 命令，可增量微调或运动到指定角度。
+        通过 MQTT 向 /humanoid/joints/control 发送 joint 命令，可增量微调或运动到指定角度。
 
         Args:
             name: 关节名，如 "idx11_head_joint1"、"idx01_body_joint1"

@@ -35,16 +35,19 @@ export class UrdfViewer {
         this.renderer.shadowMap.enabled = true;
 
         // ── 灯光 ──────────────────────────────────
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.45));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
         dirLight.position.set(5, 10, 7);
         this.scene.add(dirLight);
-        const fillLight = new THREE.DirectionalLight(0x88aaff, 0.4);
+        const fillLight = new THREE.DirectionalLight(0x88aaff, 0.6);
         fillLight.position.set(-5, 3, -5);
         this.scene.add(fillLight);
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        rimLight.position.set(0, 5, -10);
+        this.scene.add(rimLight);
 
         // ── 网格地面 ───────────────────────────────
-        const grid = new THREE.GridHelper(10, 20, 0x444444, 0x222222);
+        const grid = new THREE.GridHelper(10, 20, 0x666666, 0x444444);
         this.scene.add(grid);
 
         // ── 控制器（指针事件由前景处理，这里仅动画） ──
@@ -64,9 +67,9 @@ export class UrdfViewer {
             this.stlLoader.load(url, (geom) => {
                 console.log('[STL] 加载成功:', url, '顶点数:', geom.attributes.position?.count);
                 const mat = new THREE.MeshPhongMaterial({
-                    color: 0xb0b0b0,
-                    specular: 0x222222,
-                    shininess: 30
+                    color: 0xcccccc,
+                    specular: 0x444444,
+                    shininess: 50
                 });
                 const mesh = new THREE.Mesh(geom, mat);
                 mesh.castShadow = true;

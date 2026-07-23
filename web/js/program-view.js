@@ -6,52 +6,56 @@ import { mqttClient } from './mqtt-client.js';
 export default {
     name: 'ProgramView',
     template: `
-    <div class="panel">
-        <h5>程序 - main.py</h5>
-
-        <div class="code-block" ref="codeBlock">
-            <div
-                v-for="(line, idx) in codeLines"
-                :key="idx"
-                :class="['code-line', { 'code-line-active': idx + 1 === currentLine }]"
-                :ref="idx + 1 === currentLine ? 'activeLine' : null"
-            >
-                <span class="line-num">{{ idx + 1 }}</span>
-                <span class="line-content">{{ line || ' ' }}</span>
+    <div class="panel pv-panel">
+        <div class="pv-code-wrap">
+            <div class="code-block" ref="codeBlock">
+                <div
+                    v-for="(line, idx) in codeLines"
+                    :key="idx"
+                    :class="['code-line', { 'code-line-active': idx + 1 === currentLine }]"
+                    :ref="idx + 1 === currentLine ? 'activeLine' : null"
+                >
+                    <span class="line-num">{{ idx + 1 }}</span>
+                    <span class="line-content">{{ line || ' ' }}</span>
+                </div>
             </div>
         </div>
 
-        <div class="program-actions">
-            <button class="program-btn file-btn" @click="openFileList">文件</button>
-            <button class="program-btn read-btn" @click="readCode">读取代码</button>
-            <button
-                class="program-btn run-btn"
-                :class="{ active: running }"
-                @click="runProgram">
-                {{ running ? '运行中...' : '运行' }}
-            </button>
-            <button
-                class="program-btn debug-btn"
-                :class="{ active: debugging }"
-                @click="startDebug">
-                {{ debugging ? '调试中...' : '单步调试' }}
-            </button>
-            <button
-                class="program-btn next-btn"
-                :disabled="!debugging"
-                @click="nextLine">
-                下一行
-            </button>
-            <button
-                class="program-btn stop-btn"
-                @click="stopProgram">
-                停止程序
-            </button>
-        </div>
-
-        <div v-if="currentLine > 0" class="step-info">
-            当前执行: 第 <span class="step-line-no">{{ currentLine }}</span> 行
-            <span class="step-code">{{ codeLines[currentLine - 1] }}</span>
+        <div class="pv-actionbar">
+            <div class="pv-stepinfo">
+                <span v-if="currentLine > 0">
+                    当前执行: 第 <span class="step-line-no">{{ currentLine }}</span> 行
+                    <span class="step-code">{{ codeLines[currentLine - 1] }}</span>
+                </span>
+                <span v-else class="pv-idle">就绪</span>
+            </div>
+            <div class="program-actions">
+                <button class="program-btn file-btn" @click="openFileList">文件</button>
+                <button class="program-btn read-btn" @click="readCode">读取代码</button>
+                <button
+                    class="program-btn run-btn"
+                    :class="{ active: running }"
+                    @click="runProgram">
+                    {{ running ? '运行中...' : '运行' }}
+                </button>
+                <button
+                    class="program-btn debug-btn"
+                    :class="{ active: debugging }"
+                    @click="startDebug">
+                    {{ debugging ? '调试中...' : '单步调试' }}
+                </button>
+                <button
+                    class="program-btn next-btn"
+                    :disabled="!debugging"
+                    @click="nextLine">
+                    下一行
+                </button>
+                <button
+                    class="program-btn stop-btn"
+                    @click="stopProgram">
+                    停止程序
+                </button>
+            </div>
         </div>
 
         <!-- 文件列表弹窗 -->
@@ -104,7 +108,7 @@ export default {
         },
         openFileList() {
             // 请求读取 programs 目录下的文件列表
-            mqttClient.publishRuntimeDebug('read_program_files');
+            mqttClient.publishRuntimeDebug('read_files');
             this.showFileList = true;
             console.log('[程序] 已请求文件列表');
         },

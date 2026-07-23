@@ -8,13 +8,6 @@ export default {
     inject: ['getRobotStatus'],
     template: `
     <div class="panel djc-panel">
-        <h5 class="djc-title">关节 / 坐标数据</h5>
-
-        <div class="djc-toolbar">
-            <button class="djc-btn djc-btn-read" @click="readData">读取</button>
-            <span class="djc-count" v-if="items.length > 0">共 {{ items.length }} 条</span>
-        </div>
-
         <div class="djc-table-wrap" v-if="items.length > 0">
             <table class="djc-table">
                 <thead>
@@ -39,19 +32,23 @@ export default {
         </div>
 
         <div v-else class="djc-empty">
-            点击「读取」加载数据
+            点击右下角「读取」加载数据
         </div>
 
-        <!-- 操作按钮栏 -->
-        <div class="djc-actionbar" v-if="selectedItem">
-            <span class="djc-sel-info">
-                选中: {{ selectedItem.category === 'joints' ? '关节' : '坐标' }} ·
-                {{ selectedItem.type }} · {{ selectedItem.name }}
-            </span>
+        <!-- 底部固定操作栏 -->
+        <div class="djc-actionbar">
+            <div class="djc-left-info">
+                <span v-if="items.length > 0" class="djc-count-bar">共 {{ items.length }} 条</span>
+                <span class="djc-sel-info" v-if="selectedItem">
+                    选中: {{ selectedItem.category === 'joints' ? '关节' : '坐标' }} ·
+                    {{ selectedItem.type }} · {{ selectedItem.name }}
+                </span>
+            </div>
             <div class="djc-actions">
-                <button class="djc-btn djc-btn-go" @click="goTo">到位</button>
-                <button class="djc-btn djc-btn-update" @click="updateData">更新</button>
-                <button class="djc-btn djc-btn-delete" @click="deleteData">删除</button>
+                <button class="djc-btn djc-btn-read" @click="readData">读取</button>
+                <button class="djc-btn djc-btn-go" :disabled="!selectedItem" @click="goTo">到位</button>
+                <button class="djc-btn djc-btn-update" :disabled="!selectedItem" @click="updateData">更新</button>
+                <button class="djc-btn djc-btn-delete" :disabled="!selectedItem" @click="deleteData">删除</button>
             </div>
         </div>
     </div>
@@ -85,7 +82,7 @@ export default {
             return String(v);
         },
         onDataResp(data) {
-            if (data && data.cmd === 'response' && Array.isArray(data.data)) {
+            if (data && data.command === 'response' && Array.isArray(data.data)) {
                 this.items = data.data;
                 this.selectedIdx = -1;
                 console.log('[数据] 收到', this.items.length, '条数据');
@@ -95,8 +92,8 @@ export default {
             const item = this.selectedItem;
             if (!item) return;
             if (item.category === 'joints') {
-                // 关节运动：发送 {cmd: type, data: name} 到 /G2_minth_app
-                mqttClient.publishCommand(item.type, item.name);
+                // 关节运动：发送 {command: type, data: name} 到 /humanoid/joints/control
+                mqttClient.publishJointCommand(item.type, item.name);
                 console.log('[到位] 关节', item.type, item.name);
             } else {
                 // 坐标运动：尚未实现

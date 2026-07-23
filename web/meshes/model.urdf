@@ -13,6 +13,12 @@
   <material name="black">
     <color rgba="0.0 0.0 0.0 1.0"/>
   </material>
+  <material name="deep_black">
+    <color rgba="0.08 0.08 0.08 1.0"/>
+  </material>
+  <material name="chassis_grey">
+    <color rgba="0.45 0.45 0.48 1.0"/>
+  </material>
   <material name="blue">
     <color rgba="0.0 0.0 0.8 1.0"/>
   </material>
@@ -72,7 +78,7 @@
       <geometry>
         <mesh filename="G2/T2/base_link.stl"/>
       </geometry>
-      <material name="white"/>
+      <material name="chassis_grey"/>
     </visual>
     <collision name="base_link_coarse_0">
       <geometry>
@@ -104,7 +110,7 @@
       <geometry>
         <mesh filename="G2/T2/body_link1.stl"/>
       </geometry>
-      <material name="default"/>
+      <material name="white"/>
     </visual>
     <collision name="Cylinder">
       <origin rpy="1.570796 -0.000000 0.000000" xyz="0.000000 0.000000 0.000000"/>
@@ -184,7 +190,7 @@
       <geometry>
         <mesh filename="G2/T2/body_link3.stl"/>
       </geometry>
-      <material name="default"/>
+      <material name="black"/>
     </visual>
     <collision name="body_link3_convex_0">
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -258,7 +264,7 @@
       <geometry>
         <mesh filename="G2/T2/body_link5.stl"/>
       </geometry>
-      <material name="default"/>
+      <material name="white"/>
     </visual>
     <collision name="body_link5_convex_0">
       <geometry>
@@ -367,9 +373,7 @@
       <geometry>
         <mesh filename="G2/T2/chassis_lwheel_front_link2.stl"/>
       </geometry>
-      <material name="">
-        <color rgba="1 1 1 1"/>
-      </material>
+      <material name="black"/>
     </visual>
     <!-- <collision>
         <origin
@@ -430,9 +434,7 @@
       <geometry>
         <mesh filename="G2/T2/chassis_rwheel_front_link2.stl"/>
       </geometry>
-      <material name="">
-        <color rgba="1 1 1 1"/>
-      </material>
+      <material name="black"/>
     </visual>
     <!-- <collision>
         <origin
@@ -493,9 +495,7 @@
       <geometry>
         <mesh filename="G2/T2/chassis_rwheel_rear_link2.stl"/>
       </geometry>
-      <material name="">
-        <color rgba="1 1 1 1"/>
-      </material>
+      <material name="black"/>
     </visual>
     <!-- <collision>
         <origin
@@ -556,9 +556,7 @@
       <geometry>
         <mesh filename="G2/T2/chassis_lwheel_rear_link2.stl"/>
       </geometry>
-      <material name="">
-        <color rgba="1 1 1 1"/>
-      </material>
+      <material name="black"/>
     </visual>
     <!-- <collision>
         <origin
@@ -600,9 +598,7 @@
       <geometry>
         <mesh filename="G2/T2/head_link1.stl"/>
       </geometry>
-      <material name="body_material">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
-      </material>
+      <material name="black"/>
     </visual>
     <collision name="head_link1_convex_0">
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -632,9 +628,7 @@
       <geometry>
         <mesh filename="G2/T2/head_link2.stl"/>
       </geometry>
-      <material name="body_material">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
-      </material>
+      <material name="black"/>
     </visual>
     <collision name="head_link2_convex_0">
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -664,9 +658,7 @@
       <geometry>
         <mesh filename="G2/T2/head_link3.stl"/>
       </geometry>
-      <material name="body_material">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
-      </material>
+      <material name="black"/>
     </visual>
     <collision name="head_link3_convex_0">
       <origin rpy="0 0 0" xyz="0 0 0"/>

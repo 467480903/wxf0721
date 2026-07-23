@@ -23,47 +23,33 @@ const App = {
             openDropdown: '',         // 当前展开的下拉父菜单 id
             menus: [
                 {
-                    id: 'teach', label: '示教', children: [
+                    id: 'teach', label: '示教', icon: '🎮', children: [
                         { id: 'teach_joints', label: '角度轴' },
                         { id: 'teach_coords', label: '末端坐标' },
                     ]
                 },
                 {
-                    id: 'coord', label: '坐标系', children: [
-                        { id: 'coord_tool',   label: '工具标定' },
-                        { id: 'coord_work',   label: '工件标定' },
-                        { id: 'coord_vision', label: '视觉标定' },
-                        { id: 'coord_3d',     label: '3D视觉标定' },
-                    ]
-                },
-                {
-                    id: 'data', label: '数据', children: [
+                    id: 'data', label: '数据', icon: '📊', children: [
                         { id: 'data_jc',      label: '关节/坐标' },
                         { id: 'data_modbus',  label: 'modbus变量' },
                         { id: 'data_sync',    label: '同步' },
                         { id: 'data_mappoint',label: '地图点' },
                     ]
                 },
-                { id: 'program', label: '程序' },
+                { id: 'program', label: '程序', icon: '📋' },
                 {
-                    id: 'map', label: '地图', children: [
+                    id: 'map', label: '地图', icon: '🗺️', children: [
                         { id: 'map_scan',    label: '扫图建图' },
                         { id: 'map_use',     label: '使用地图' },
                         { id: 'map_chassis', label: '底盘控制' },
                     ]
                 },
                 {
-                    id: 'camera', label: '相机', children: [
+                    id: 'camera', label: '相机', icon: '📷', children: [
                         { id: 'cam_capture', label: '采集' },
                         { id: 'cam_label',   label: '自动标注' },
                         { id: 'cam_flow',    label: '流程' },
                         { id: 'cam_settings',label: '设置' },
-                    ]
-                },
-                {
-                    id: 'inference', label: '推理', children: [
-                        { id: 'inf_collect', label: '数据采集' },
-                        { id: 'inf_model',   label: '模型推理' },
                     ]
                 },
             ],
@@ -90,11 +76,19 @@ const App = {
             }
             return '';
         },
+        // 导航栏右侧显示的页面标题
+        navPageTitle() {
+            const titles = {
+                'data_jc': '关节 / 坐标数据',
+                'program': '程序 - main.py',
+            };
+            return titles[this.currentMenu] || '';
+        },
         // 判断当前菜单是否为占位页面（非已实现的组件）
         isPlaceholder() {
             const implemented = [
                 'teach_joints', 'teach_coords', 'program',
-                'map_scan', 'map_chassis', 'cam_capture', 'inf_collect', 'inf_model', 'data_jc'
+                'map_scan', 'map_chassis', 'cam_capture', 'data_jc'
             ];
             return this.currentMenu && !implemented.includes(this.currentMenu);
         }
@@ -115,7 +109,7 @@ const App = {
                         class="menu-btn"
                         :class="{ active: currentMenu === m.id }"
                         @click="selectMenu(m.id)">
-                    {{ m.label }}
+                    <span class="menu-icon">{{ m.icon }}</span>{{ m.label }}
                 </button>
 
                 <!-- 有子菜单：下拉 -->
@@ -123,7 +117,7 @@ const App = {
                     <button class="menu-btn"
                             :class="{ active: openDropdown === m.id || isChildActive(m) }"
                             @click="toggleDropdown(m.id)">
-                        {{ m.label }}
+                        <span class="menu-icon">{{ m.icon }}</span>{{ m.label }}
                         <span class="dropdown-arrow">▾</span>
                     </button>
                     <div v-show="openDropdown === m.id" class="dropdown-panel">
@@ -136,9 +130,11 @@ const App = {
                     </div>
                 </div>
             </template>
+
+            <span class="nav-page-title" v-if="navPageTitle">{{ navPageTitle }}</span>
         </nav>
 
-        <main id="content" :class="{ 'content-hidden': !currentMenu, 'content-fullscreen': currentMenu === 'map_chassis' || currentMenu === 'cam_capture' }">
+        <main id="content" :class="{ 'content-hidden': !currentMenu, 'content-fullscreen': currentMenu === 'map_chassis' || currentMenu === 'cam_capture' || currentMenu === 'data_jc' || currentMenu === 'program' }">
             <teach-joints     v-if="currentMenu === 'teach_joints'"></teach-joints>
             <teach-coords     v-if="currentMenu === 'teach_coords'"></teach-coords>
             <program-view     v-if="currentMenu === 'program'"></program-view>
@@ -149,10 +145,6 @@ const App = {
 
             <!-- 相机 > 采集 -->
             <camera-view      v-if="currentMenu === 'cam_capture'"></camera-view>
-
-            <!-- 推理 > 数据采集 / 模型推理 -->
-            <data-collection  v-if="currentMenu === 'inf_collect'"></data-collection>
-            <model-inference  v-if="currentMenu === 'inf_model'"></model-inference>
 
             <!-- 数据 > 关节/坐标 -->
             <data-joints-coords v-if="currentMenu === 'data_jc'"></data-joints-coords>

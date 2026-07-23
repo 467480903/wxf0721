@@ -1,21 +1,47 @@
 // mqtt-client.js
 // MQTT 客户端封装，基于 paho-mqtt.min.js
-// 连接本机 WebSocket 9001，订阅 /G2_minth_status 和 /G2_minth_cloud
+// 连接本机 WebSocket 9001，订阅 /humanoid/ 主题
+//
+// 主题结构（与服务端 services/main.py 对齐）：
+//   /humanoid/camera/data         服务端发布相机帧
+//   /humanoid/camera/control      客户端控制相机
+//   /humanoid/joints/data         服务端发布关节数据列表
+//   /humanoid/joints/control      客户端控制关节运动
+//   /humanoid/joints/save         客户端保存关节/位姿数据
+//   /humanoid/status/data         服务端发布机器人状态
+//   /humanoid/status/control      客户端控制状态/点云
+//   /humanoid/status/cloud        服务端发布点云
+//   /humanoid/commands/data       客户端发送动作命令
+//   /humanoid/commands/done       服务端发布完成通知
+//   /humanoid/map/points          服务端发布地图点位
+//   /humanoid/map/control         客户端控制地图点位
+//   /humanoid/programs/control    客户端控制程序调试
+//   /humanoid/programs/step       服务端发布执行步骤
+//   /humanoid/programs/codes      服务端发布代码内容
+//   /humanoid/programs/files      服务端发布文件列表
 
 const MQTT_BROKER = location.hostname || '10.2.236.6';
 const MQTT_PORT   = 9001;
-const STATUS_TOPIC = '/G2_minth_status';
-const CLOUD_TOPIC  = '/G2_minth_cloud';
-const CAMERAS_TOPIC = '/minth/g2/cameras';
-const CAMERA_CTRL_TOPIC = '/minth/g2/camera';
-const CAMERA_DETECT_TOPIC = '/minth/g2/camera/detect';
-const RUNTIME_STEP_TOPIC = '/runtime_step';
-const RUNTIME_CODES_TOPIC = '/runtime_codes';
-const RUNTIME_PROGRAM_FILES_TOPIC = '/runtime_program_files';
-const DATA_REQ_TOPIC = '/minth/g2/data';
-const DATA_RESP_TOPIC = '/minth/g2/data/response';
-const MAP_POINTS_TOPIC = '/minth/g2/map/points';
-const CLOUD_CTRL_TOPIC = '/minth/g2/status';
+
+// 服务端发布主题（客户端订阅）
+const STATUS_TOPIC = '/humanoid/status/data';
+const CLOUD_TOPIC  = '/humanoid/status/cloud';
+const CAMERAS_TOPIC = '/humanoid/camera/data';
+const JOINTS_DATA_TOPIC = '/humanoid/joints/data';
+const DONE_TOPIC = '/humanoid/commands/done';
+const MAP_POINTS_TOPIC = '/humanoid/map/points';
+const PROGRAMS_STEP_TOPIC = '/humanoid/programs/step';
+const PROGRAMS_CODES_TOPIC = '/humanoid/programs/codes';
+const PROGRAMS_FILES_TOPIC = '/humanoid/programs/files';
+
+// 客户端发布主题（客户端发送命令）
+const CAMERA_CTRL_TOPIC = '/humanoid/camera/control';
+const JOINTS_CTRL_TOPIC = '/humanoid/joints/control';
+const JOINTS_SAVE_TOPIC = '/humanoid/joints/save';
+const STATUS_CTRL_TOPIC = '/humanoid/status/control';
+const COMMANDS_TOPIC = '/humanoid/commands/data';
+const MAP_CTRL_TOPIC = '/humanoid/map/control';
+const PROGRAMS_CTRL_TOPIC = '/humanoid/programs/control';
 
 class MqttClient {
     constructor() {
@@ -24,7 +50,7 @@ class MqttClient {
         this.statusCallback = null;
         this.cloudCallbacks = [];
         this.cameraCallbacks = [];
-        this.cameraDetectCallbacks = [];
+        this.doneCallbacks = [];
         this.runtimeStepCallbacks = [];
         this.runtimeCodesCallbacks = [];
         this.runtimeProgramFilesCallbacks = [];
@@ -52,28 +78,20 @@ class MqttClient {
                 if (message.destinationName === STATUS_TOPIC && this.statusCallback) {
                     this.statusCallback(data);
                 } else if (message.destinationName === CLOUD_TOPIC) {
-                    // 分发给所有注册的点云回调
                     this.cloudCallbacks.forEach(cb => cb(data));
                 } else if (message.destinationName === CAMERAS_TOPIC) {
-                    // 分发给所有注册的相机回调
                     this.cameraCallbacks.forEach(cb => cb(data));
-                } else if (message.destinationName === CAMERA_DETECT_TOPIC) {
-                    // 分发给所有注册的检测图像回调
-                    this.cameraDetectCallbacks.forEach(cb => cb(data));
-                } else if (message.destinationName === RUNTIME_STEP_TOPIC) {
-                    // 分发给所有注册的调试步骤回调
-                    this.runtimeStepCallbacks.forEach(cb => cb(data));
-                } else if (message.destinationName === RUNTIME_CODES_TOPIC) {
-                    // 分发给所有注册的代码回调
-                    this.runtimeCodesCallbacks.forEach(cb => cb(data));
-                } else if (message.destinationName === RUNTIME_PROGRAM_FILES_TOPIC) {
-                    // 分发给所有注册的程序文件列表回调
-                    this.runtimeProgramFilesCallbacks.forEach(cb => cb(data));
-                } else if (message.destinationName === DATA_RESP_TOPIC) {
-                    // 分发给所有注册的数据响应回调
+                } else if (message.destinationName === DONE_TOPIC) {
+                    this.doneCallbacks.forEach(cb => cb(data));
+                } else if (message.destinationName === JOINTS_DATA_TOPIC) {
                     this.dataRespCallbacks.forEach(cb => cb(data));
+                } else if (message.destinationName === PROGRAMS_STEP_TOPIC) {
+                    this.runtimeStepCallbacks.forEach(cb => cb(data));
+                } else if (message.destinationName === PROGRAMS_CODES_TOPIC) {
+                    this.runtimeCodesCallbacks.forEach(cb => cb(data));
+                } else if (message.destinationName === PROGRAMS_FILES_TOPIC) {
+                    this.runtimeProgramFilesCallbacks.forEach(cb => cb(data));
                 } else if (message.destinationName === MAP_POINTS_TOPIC) {
-                    // 分发给所有注册的地图点位回调
                     this.mapPointsCallbacks.forEach(cb => cb(data));
                 }
             } catch (e) {
@@ -88,11 +106,11 @@ class MqttClient {
                 this.client.subscribe(STATUS_TOPIC, { qos: 0 });
                 this.client.subscribe(CLOUD_TOPIC, { qos: 0 });
                 this.client.subscribe(CAMERAS_TOPIC, { qos: 0 });
-                this.client.subscribe(CAMERA_DETECT_TOPIC, { qos: 0 });
-                this.client.subscribe(RUNTIME_STEP_TOPIC, { qos: 0 });
-                this.client.subscribe(RUNTIME_CODES_TOPIC, { qos: 0 });
-                this.client.subscribe(RUNTIME_PROGRAM_FILES_TOPIC, { qos: 0 });
-                this.client.subscribe(DATA_RESP_TOPIC, { qos: 0 });
+                this.client.subscribe(DONE_TOPIC, { qos: 0 });
+                this.client.subscribe(JOINTS_DATA_TOPIC, { qos: 0 });
+                this.client.subscribe(PROGRAMS_STEP_TOPIC, { qos: 0 });
+                this.client.subscribe(PROGRAMS_CODES_TOPIC, { qos: 0 });
+                this.client.subscribe(PROGRAMS_FILES_TOPIC, { qos: 0 });
                 this.client.subscribe(MAP_POINTS_TOPIC, { qos: 0 });
             },
             onFailure: (err) => {
@@ -116,9 +134,6 @@ class MqttClient {
         }
     }
 
-    /**
-     * 移除点云数据回调
-     */
     removeCloudCallback(callback) {
         this.cloudCallbacks = this.cloudCallbacks.filter(cb => cb !== callback);
     }
@@ -132,27 +147,86 @@ class MqttClient {
         }
     }
 
-    /**
-     * 移除相机数据回调
-     */
     removeCameraCallback(callback) {
         this.cameraCallbacks = this.cameraCallbacks.filter(cb => cb !== callback);
     }
 
     /**
-     * 注册检测图像回调
+     * 注册命令完成回调
      */
-    addCameraDetectCallback(callback) {
-        if (!this.cameraDetectCallbacks.includes(callback)) {
-            this.cameraDetectCallbacks.push(callback);
+    addDoneCallback(callback) {
+        if (!this.doneCallbacks.includes(callback)) {
+            this.doneCallbacks.push(callback);
         }
     }
 
+    removeDoneCallback(callback) {
+        this.doneCallbacks = this.doneCallbacks.filter(cb => cb !== callback);
+    }
+
     /**
-     * 移除检测图像回调
+     * 注册调试步骤回调
      */
-    removeCameraDetectCallback(callback) {
-        this.cameraDetectCallbacks = this.cameraDetectCallbacks.filter(cb => cb !== callback);
+    addRuntimeStepCallback(callback) {
+        if (!this.runtimeStepCallbacks.includes(callback)) {
+            this.runtimeStepCallbacks.push(callback);
+        }
+    }
+
+    removeRuntimeStepCallback(callback) {
+        this.runtimeStepCallbacks = this.runtimeStepCallbacks.filter(cb => cb !== callback);
+    }
+
+    /**
+     * 注册代码内容回调
+     */
+    addRuntimeCodesCallback(callback) {
+        if (!this.runtimeCodesCallbacks.includes(callback)) {
+            this.runtimeCodesCallbacks.push(callback);
+        }
+    }
+
+    removeRuntimeCodesCallback(callback) {
+        this.runtimeCodesCallbacks = this.runtimeCodesCallbacks.filter(cb => cb !== callback);
+    }
+
+    /**
+     * 注册程序文件列表回调
+     */
+    addRuntimeProgramFilesCallback(callback) {
+        if (!this.runtimeProgramFilesCallbacks.includes(callback)) {
+            this.runtimeProgramFilesCallbacks.push(callback);
+        }
+    }
+
+    removeRuntimeProgramFilesCallback(callback) {
+        this.runtimeProgramFilesCallbacks = this.runtimeProgramFilesCallbacks.filter(cb => cb !== callback);
+    }
+
+    /**
+     * 注册数据响应回调
+     */
+    addDataRespCallback(callback) {
+        if (!this.dataRespCallbacks.includes(callback)) {
+            this.dataRespCallbacks.push(callback);
+        }
+    }
+
+    removeDataRespCallback(callback) {
+        this.dataRespCallbacks = this.dataRespCallbacks.filter(cb => cb !== callback);
+    }
+
+    /**
+     * 注册地图点位回调
+     */
+    addMapPointsCallback(callback) {
+        if (!this.mapPointsCallbacks.includes(callback)) {
+            this.mapPointsCallbacks.push(callback);
+        }
+    }
+
+    removeMapPointsCallback(callback) {
+        this.mapPointsCallbacks = this.mapPointsCallbacks.filter(cb => cb !== callback);
     }
 
     /**
@@ -171,129 +245,90 @@ class MqttClient {
     }
 
     /**
-     * 发布命令到 /G2_minth_app
-     * @param {string} cmd - 命令名
+     * 发布关节运动命令到 /humanoid/joints/control
+     * @param {string} command - 命令名（WBC/arms/left/right/head/waist/joint）
      * @param {*} data - 命令数据
      */
-    publishCommand(cmd, data) {
-        this.publishToTopic('/G2_minth_app', { cmd, data });
+    publishJointCommand(command, data) {
+        this.publishToTopic(JOINTS_CTRL_TOPIC, { command, data });
     }
 
     /**
-     * 发送相机控制命令
+     * 发布动作命令到 /humanoid/commands/data
+     * @param {string} command - 命令名（tts/offset_move/grab/go/go_rel/cam_head）
+     * @param {*} data - 命令数据
      */
-    publishCameraControl(cmd) {
-        this.publishToTopic(CAMERA_CTRL_TOPIC, { cmd });
+    publishCommand(command, data) {
+        this.publishToTopic(COMMANDS_TOPIC, { command, data });
     }
 
     /**
-     * 发送相机控制命令（带额外字段）
-     * @param {string} cmd - 命令名
+     * 发送相机控制命令到 /humanoid/camera/control
+     * @param {string} command - 命令名（start/stop/save_photo/detect）
+     */
+    publishCameraControl(command) {
+        this.publishToTopic(CAMERA_CTRL_TOPIC, { command });
+    }
+
+    /**
+     * 发送相机控制命令（带额外字段）到 /humanoid/camera/control
+     * @param {string} command - 命令名
      * @param {object} extra - 额外字段，如 { cameras: [...] } 或 { yolo: 'wxf.pt' }
      */
-    publishCameraCommand(cmd, extra = {}) {
-        this.publishToTopic(CAMERA_CTRL_TOPIC, { cmd, ...extra });
+    publishCameraCommand(command, extra = {}) {
+        this.publishToTopic(CAMERA_CTRL_TOPIC, { command, ...extra });
     }
 
     /**
-     * 注册调试步骤回调
+     * 发送数据保存命令到 /humanoid/joints/save
+     * @param {object} payload - 完整命令消息
      */
-    addRuntimeStepCallback(callback) {
-        if (!this.runtimeStepCallbacks.includes(callback)) {
-            this.runtimeStepCallbacks.push(callback);
-        }
+    publishDataSave(payload) {
+        this.publishToTopic(JOINTS_SAVE_TOPIC, payload);
     }
 
     /**
-     * 移除调试步骤回调
+     * 发送数据读取请求到 /humanoid/joints/save
+     * @param {string} command - 命令名（read/update/delete）
+     * @param {object} extra - 额外字段
      */
-    removeRuntimeStepCallback(callback) {
-        this.runtimeStepCallbacks = this.runtimeStepCallbacks.filter(cb => cb !== callback);
+    publishDataReq(command, extra = {}) {
+        this.publishToTopic(JOINTS_SAVE_TOPIC, { command, ...extra });
     }
 
     /**
-     * 注册代码内容回调
+     * 发送云端控制指令（start_cloud / stop_cloud）到 /humanoid/status/control
+     * @param {string} command - 命令名
      */
-    addRuntimeCodesCallback(callback) {
-        if (!this.runtimeCodesCallbacks.includes(callback)) {
-            this.runtimeCodesCallbacks.push(callback);
-        }
+    publishCloudControl(command) {
+        this.publishToTopic(STATUS_CTRL_TOPIC, { command });
     }
 
     /**
-     * 移除代码内容回调
+     * 发送地图点位控制命令到 /humanoid/map/control
+     * @param {string} command - 命令名（read_points/save_point）
+     * @param {*} data - 命令数据
      */
-    removeRuntimeCodesCallback(callback) {
-        this.runtimeCodesCallbacks = this.runtimeCodesCallbacks.filter(cb => cb !== callback);
+    publishMapControl(command, data = null) {
+        const payload = data !== null ? { command, data } : { command };
+        this.publishToTopic(MAP_CTRL_TOPIC, payload);
     }
 
     /**
-     * 发送 runtime 调试命令
+     * 发送程序调试命令到 /humanoid/programs/control
+     * @param {string} command - 命令名（run/debug/next/stop/copy/codes/read_files）
+     * @param {*} data - 命令数据
      */
-    publishRuntimeDebug(cmd, data) {
-        this.publishToTopic('/runtime_debug', { cmd, data });
+    publishProgramControl(command, data = null) {
+        const payload = data !== null ? { command, data } : { command };
+        this.publishToTopic(PROGRAMS_CTRL_TOPIC, payload);
     }
 
     /**
-     * 注册程序文件列表回调
+     * 兼容旧接口：发送 runtime 调试命令
      */
-    addRuntimeProgramFilesCallback(callback) {
-        if (!this.runtimeProgramFilesCallbacks.includes(callback)) {
-            this.runtimeProgramFilesCallbacks.push(callback);
-        }
-    }
-
-    /**
-     * 移除程序文件列表回调
-     */
-    removeRuntimeProgramFilesCallback(callback) {
-        this.runtimeProgramFilesCallbacks = this.runtimeProgramFilesCallbacks.filter(cb => cb !== callback);
-    }
-
-    /**
-     * 注册数据响应回调
-     */
-    addDataRespCallback(callback) {
-        if (!this.dataRespCallbacks.includes(callback)) {
-            this.dataRespCallbacks.push(callback);
-        }
-    }
-
-    /**
-     * 移除数据响应回调
-     */
-    removeDataRespCallback(callback) {
-        this.dataRespCallbacks = this.dataRespCallbacks.filter(cb => cb !== callback);
-    }
-
-    /**
-     * 发送数据服务请求
-     */
-    publishDataReq(cmd, extra = {}) {
-        this.publishToTopic(DATA_REQ_TOPIC, { cmd, ...extra });
-    }
-
-    /**
-     * 注册地图点位回调
-     */
-    addMapPointsCallback(callback) {
-        if (!this.mapPointsCallbacks.includes(callback)) {
-            this.mapPointsCallbacks.push(callback);
-        }
-    }
-
-    /**
-     * 移除地图点位回调
-     */
-    removeMapPointsCallback(callback) {
-        this.mapPointsCallbacks = this.mapPointsCallbacks.filter(cb => cb !== callback);
-    }
-
-    /**
-     * 发送云端控制指令（start_cloud / stop_cloud）
-     */
-    publishCloudControl(cmd) {
-        this.publishToTopic(CLOUD_CTRL_TOPIC, { cmd });
+    publishRuntimeDebug(command, data) {
+        this.publishProgramControl(command, data);
     }
 }
 

@@ -179,7 +179,7 @@ export default {
                     joints[joint.name] = joint.value * Math.PI / 180;
                 });
             });
-            mqttClient.publishCommand('WBC', joints);
+            mqttClient.publishJointCommand('WBC', joints);
         },
         syncFromStatus(status) {
             if (!status || !status.joints) return;
@@ -210,8 +210,8 @@ export default {
                     joints[joint.name] = joint.value * Math.PI / 180;
                 });
             });
-            mqttClient.publishToTopic('/G2_minth_save_joints', {
-                cmd: 'save_joints',
+            mqttClient.publishDataSave({
+                command: 'save_joints',
                 type: this.saveType,
                 name: this.saveName,
                 data: joints

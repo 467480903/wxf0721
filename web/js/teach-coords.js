@@ -194,8 +194,8 @@ export default {
         doSave() {
             if (!this.saveName) return;
             const data = this.collectData();
-            mqttClient.publishToTopic('/G2_minth_save_position', {
-                cmd: 'save_position',
+            mqttClient.publishDataSave({
+                command: 'save_position',
                 type: this.saveType,
                 name: this.saveName,
                 data: data

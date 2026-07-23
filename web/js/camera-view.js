@@ -106,7 +106,7 @@ export default {
             mqttClient.publishCameraControl('stop');
         },
         saveImage() {
-            mqttClient.publishCameraCommand('save', { cameras: ['kHeadColor', 'kHeadDepth'] });
+            mqttClient.publishCameraCommand('save_photo', { cameras: ['kHeadColor', 'kHeadDepth'] });
         }
     }
 };
