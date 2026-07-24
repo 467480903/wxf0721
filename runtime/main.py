@@ -1,34 +1,27 @@
-from minth import Minth
+import random
 import time
+from minth import Minth
 
 G2 = Minth.G2()
-G2.WBC("Wwait")
-G2.GRIPPER({"left": -0.7, "right": -0.7})
-G2.GO(4)
-G2.YOLO("7.14.pt")
-G2.CHASSIS_CORRECT()
-G2.WAIST_CORRECT()
-G2.ARMS("befocatch")
-G2.ARMS("catch3")
-G2.VLA("/data/pi0.5_HONGDA_2605/")
-G2.GRIPPER({"left": -0.0, "right": -0.0})
-G2.OFFSET({"lz": 100,  "rz": 100})
-G2.OFFSET({"lx": -100, "rx": -100})
-G2.REL({"x": -1.0})
-G2.GO(9)
-G2.YOLO("wxf.pt")
-G2.CHASSIS_CORRECT(px_to_meter=-130/60/1000)
-G2.WAIST_CORRECT()
-G2.VLA("/data/pi0.5_HONGDA_2605_2/")
-G2.ARMS("A2P1")
-G2.ARMS("A2P2")
-G2.ARMS("A2P3")
-G2.VLA("/data/pi0.5_HONGDA_2605_2/")
-G2.ARMS("A2P4")
-G2.ARMS("A2P5")
-G2.GRIPPER({"left": -0.7, "right": -0.7})
-time.sleep(1.5)
-G2.ARMS("A2P6")
-G2.REL({"x": -1.0})
-G2.GO(6)
-G2.WBC("Wwait")
+
+while True:
+    # 1. 腰部旋转：随机弧度值 [-0.05, 0.05]
+    waist_val = random.uniform(-0.09, 0.09)
+    G2.JOINT("idx05_body_joint5", value=waist_val)
+
+    # 2. 随机位移量 a: [-0.2, 0.2]
+    a = random.uniform(-0.15, 0.15)
+
+    # 3. 随机方向选择 b: 1 或 2
+    b = random.randint(1, 2)
+
+    if b == 1:
+        # x 方向移动 a，再移回 -a
+        G2.REL({"x": a})
+        G2.REL({"x": -a})
+    else:
+        # y 方向移动 a，再移回 -a
+        G2.REL({"y": a})
+        G2.REL({"y": -a})
+
+    # 继续重复

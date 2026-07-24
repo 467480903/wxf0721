@@ -1265,6 +1265,13 @@ html, body {
 .cv-btn-on  { background: linear-gradient(180deg, #1d6f3a, #145c2a); border-color: #28894a; color: #6f6; }
 .cv-btn-off { background: linear-gradient(180deg, #6f1d1d, #5c1414); border-color: #892828; color: #f66; }
 .cv-btn-save { background: linear-gradient(180deg, #1a3c5c, #142e48); border-color: #2a5c8c; color: #6cf; }
+.cv-btn-continuous-start { background: linear-gradient(180deg, #5c4a1a, #4a3a10); border-color: #cc9933; color: #ffcc33; }
+.cv-btn-continuous-stop { background: linear-gradient(180deg, #6f1d1d, #5c1414); border-color: #cc3333; color: #ff6666; animation: cv-pulse 1s ease-in-out infinite; }
+
+.cv-status-capturing {
+    color: #ffcc33;
+    animation: cv-pulse 0.8s ease-in-out infinite;
+}
 
 /* ── 数据采集 / 模型推理 共用表格 ──────────────── */
 .step-indicator {

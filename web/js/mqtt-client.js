@@ -50,6 +50,7 @@ class MqttClient {
         this.statusCallback = null;
         this.cloudCallbacks = [];
         this.cameraCallbacks = [];
+        this.cameraDetectCallbacks = [];
         this.doneCallbacks = [];
         this.runtimeStepCallbacks = [];
         this.runtimeCodesCallbacks = [];
@@ -81,6 +82,7 @@ class MqttClient {
                     this.cloudCallbacks.forEach(cb => cb(data));
                 } else if (message.destinationName === CAMERAS_TOPIC) {
                     this.cameraCallbacks.forEach(cb => cb(data));
+                    this.cameraDetectCallbacks.forEach(cb => cb(data));
                 } else if (message.destinationName === DONE_TOPIC) {
                     this.doneCallbacks.forEach(cb => cb(data));
                 } else if (message.destinationName === JOINTS_DATA_TOPIC) {
@@ -149,6 +151,19 @@ class MqttClient {
 
     removeCameraCallback(callback) {
         this.cameraCallbacks = this.cameraCallbacks.filter(cb => cb !== callback);
+    }
+
+    /**
+     * 注册相机检测回调
+     */
+    addCameraDetectCallback(callback) {
+        if (!this.cameraDetectCallbacks.includes(callback)) {
+            this.cameraDetectCallbacks.push(callback);
+        }
+    }
+
+    removeCameraDetectCallback(callback) {
+        this.cameraDetectCallbacks = this.cameraDetectCallbacks.filter(cb => cb !== callback);
     }
 
     /**

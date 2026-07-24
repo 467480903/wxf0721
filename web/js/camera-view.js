@@ -32,9 +32,12 @@ export default {
                 <button class="cv-btn cv-btn-on" :class="{active: streaming}" @click="startStream" :disabled="streaming">开启</button>
                 <button class="cv-btn cv-btn-off" :class="{active: !streaming}" @click="stopStream" :disabled="!streaming">关闭</button>
                 <button class="cv-btn cv-btn-save" @click="saveImage">拍摄</button>
+                <button v-if="!continuousCapturing" class="cv-btn cv-btn-continuous-start" @click="startContinuousCapture">持续拍照</button>
+                <button v-else class="cv-btn cv-btn-continuous-stop" @click="stopContinuousCapture">停止连拍</button>
             </div>
             <div class="cv-bar-center">
-                <span v-if="streaming" class="cv-status cv-status-live">● 采集中</span>
+                <span v-if="continuousCapturing" class="cv-status cv-status-capturing">● 连拍中 (0.5s/张)</span>
+                <span v-else-if="streaming" class="cv-status cv-status-live">● 采集中</span>
                 <span v-else class="cv-status">已停止</span>
             </div>
         </div>
@@ -43,6 +46,7 @@ export default {
     data() {
         return {
             streaming: false,
+            continuousCapturing: false,
             images: {},
             resultImage: null,
             resultText: '',
@@ -95,6 +99,9 @@ export default {
         if (this.streaming) {
             mqttClient.publishCameraControl('stop');
         }
+        if (this.continuousCapturing) {
+            mqttClient.publishCameraControl('stop_continuous_capture');
+        }
     },
     methods: {
         startStream() {
@@ -107,6 +114,14 @@ export default {
         },
         saveImage() {
             mqttClient.publishCameraCommand('save_photo', { cameras: ['kHeadColor', 'kHeadDepth'] });
+        },
+        startContinuousCapture() {
+            this.continuousCapturing = true;
+            mqttClient.publishCameraControl('start_continuous_capture');
+        },
+        stopContinuousCapture() {
+            this.continuousCapturing = false;
+            mqttClient.publishCameraControl('stop_continuous_capture');
         }
     }
 };

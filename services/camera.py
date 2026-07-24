@@ -64,7 +64,7 @@ CAMERA_NAME_MAP = {
 }
 
 # 采集周期（秒）
-LOOP_INTERVAL = 0.5
+LOOP_INTERVAL = 0.8
 
 # JPEG 编码质量
 JPEG_QUALITY = 60
@@ -78,6 +78,12 @@ YOLO_RECV_TIMEOUT = 60.0
 _publishing = False
 _publish_lock = threading.Lock()
 
+# 持续拍照开关
+_continuous_capturing = False
+_continuous_lock = threading.Lock()
+_continuous_interval = 0.8
+_continuous_count = 0
+
 
 def is_publishing():
     with _publish_lock:
@@ -88,6 +94,19 @@ def set_publishing(flag):
     global _publishing
     with _publish_lock:
         _publishing = flag
+
+
+def is_continuous_capturing():
+    with _continuous_lock:
+        return _continuous_capturing
+
+
+def set_continuous_capturing(flag):
+    global _continuous_capturing, _continuous_count
+    with _continuous_lock:
+        _continuous_capturing = flag
+        if not flag:
+            _continuous_count = 0
 
 
 # ═══════════════════════════════════════════════════════════
@@ -173,9 +192,11 @@ def streaming_loop():
     """相机流发布主循环（在独立线程中运行）
 
     线程始终按 LOOP_INTERVAL 周期运行，
-    仅当 is_publishing() 为 True 时才读取并发布相机数据。
+    - 当 is_publishing() 为 True 时读取并发布相机数据
+    - 当 is_continuous_capturing() 为 True 时每隔 0.5 秒保存一张头部彩色照片
     """
     print("[相机] 发布线程已启动，等待 start 命令")
+    last_capture_time = 0
     while True:
         try:
             t0 = time.time()
@@ -183,9 +204,16 @@ def streaming_loop():
             if is_publishing():
                 _capture_and_publish()
 
+            if is_continuous_capturing():
+                now = time.time()
+                if now - last_capture_time >= _continuous_interval:
+                    _save_continuous_head_color()
+                    last_capture_time = now
+
             elapsed = time.time() - t0
-            if elapsed < LOOP_INTERVAL:
-                time.sleep(LOOP_INTERVAL - elapsed)
+            sleep_time = min(LOOP_INTERVAL, _continuous_interval)
+            if elapsed < sleep_time:
+                time.sleep(sleep_time - elapsed)
         except Exception as e:
             print(f"[相机] 循环异常: {e}")
             time.sleep(1.0)
@@ -316,6 +344,42 @@ def _save_depth_image(img, name, timestamp):
     except Exception as e:
         print(f"  [保存] 深度伪彩色失败: {e}")
         return raw_name
+
+
+def _save_continuous_head_color():
+    """持续拍照模式：只保存头部彩色相机图片，带序号"""
+    global _continuous_count
+    try:
+        os.makedirs(common.IMAGE_SAVE_DIR, exist_ok=True)
+        img = common.camera.get_latest_image(agibot_gdk.CameraType.kHeadColor, 1000.0)
+        if img is None or img.data is None:
+            return
+
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        _continuous_count += 1
+        seq = f"{_continuous_count:04d}"
+
+        encoding = getattr(img, 'encoding', None)
+        if encoding == agibot_gdk.Encoding.JPEG:
+            jpg_name = f"cap_{timestamp}_{seq}.jpg"
+            with open(os.path.join(common.IMAGE_SAVE_DIR, jpg_name), "wb") as f:
+                f.write(img.data)
+        elif HAS_CV2:
+            nparr = np.frombuffer(img.data, dtype=np.uint8)
+            color_format = getattr(img, 'color_format', None)
+            if color_format == agibot_gdk.ColorFormat.RGB:
+                bgr = cv2.cvtColor(nparr.reshape((img.height, img.width, 3)), cv2.COLOR_RGB2BGR)
+            else:
+                bgr = nparr.reshape((img.height, img.width, 3))
+            jpg_name = f"cap_{timestamp}_{seq}.jpg"
+            cv2.imwrite(os.path.join(common.IMAGE_SAVE_DIR, jpg_name), bgr)
+        else:
+            raw_name = f"cap_{timestamp}_{seq}.raw"
+            with open(os.path.join(common.IMAGE_SAVE_DIR, raw_name), "wb") as f:
+                f.write(img.data)
+        print(f"  [连拍] 第{_continuous_count}张: {jpg_name}")
+    except Exception as e:
+        print(f"  [连拍] 保存失败: {e}")
 
 
 # ═══════════════════════════════════════════════════════════
@@ -517,6 +581,14 @@ def handle_control(payload):
     elif cmd == "stop":
         set_publishing(False)
         print("[相机] 停止发布")
+
+    elif cmd == "start_continuous_capture":
+        set_continuous_capturing(True)
+        print("[相机] 开始持续拍照（头部彩色，间隔0.5秒）")
+
+    elif cmd == "stop_continuous_capture":
+        set_continuous_capturing(False)
+        print("[相机] 停止持续拍照")
 
     elif cmd == "save_photo":
         cameras = payload.get("cameras", [])
