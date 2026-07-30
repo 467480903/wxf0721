@@ -64,7 +64,7 @@ GDK_INIT_WAIT_S = 2.0
 # 单次取图/取状态的超时（ms）
 GDK_QUERY_TIMEOUT_MS = 1000.0
 # 后台采集线程目标频率（Hz），高于 lerobot 默认 15Hz
-COLLECT_FPS = 30.0
+COLLECT_FPS = 10.0
 # 后台采集失败时日志的最小间隔（秒），避免刷屏
 ERROR_LOG_INTERVAL_S = 5.0
 
@@ -83,7 +83,7 @@ class G2StateProvider:
     client `get` 请求直接读缓存返回，无 GDK 调用、无 JPEG 编码延迟。
     """
 
-    def __init__(self, jpeg_quality: int = 80, enable_control: bool = False):
+    def __init__(self, jpeg_quality: int = 40, enable_control: bool = False):
         self.robot: Optional[agibot_gdk.Robot] = None
         self.camera: Optional[agibot_gdk.Camera] = None
         self.jpeg_quality = jpeg_quality
