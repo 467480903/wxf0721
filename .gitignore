@@ -5,3 +5,4 @@ runtime/__pycache__/
 python3.*
 *.pyc
 lerobot/__pycache__/
+dds_view.*
