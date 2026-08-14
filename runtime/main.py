@@ -1,27 +1,30 @@
-import random
 import time
-from minth import Minth
+import agibot_gdk
 
-G2 = Minth.G2()
 
-while True:
-    # 1. 腰部旋转：随机弧度值 [-0.05, 0.05]
-    waist_val = random.uniform(-0.09, 0.09)
-    G2.JOINT("idx05_body_joint5", value=waist_val)
+def main():
+    if agibot_gdk.gdk_init() != agibot_gdk.GDKRes.kSuccess:
+        print("GDK初始化失败")
+        return
+    print("GDK初始化成功")
 
-    # 2. 随机位移量 a: [-0.2, 0.2]
-    a = random.uniform(-0.15, 0.15)
+    try:
+        robot = agibot_gdk.Robot()
+        time.sleep(2)  # 等待 Robot 初始化完成
 
-    # 3. 随机方向选择 b: 1 或 2
-    b = random.randint(1, 2)
+        # 构造左夹爪控制请求（omnipicker 类型，1 个关节）
+        # position 取值范围 [-0.785, 0]：0 为闭合，-0.785 为完全张开
+        joint_states = agibot_gdk.JointStates()
+        joint_states.group = "left_tool"
+        joint_states.target_type = "omnipicker"
 
-    if b == 1:
-        # x 方向移动 a，再移回 -a
-        G2.REL({"x": a})
-        G2.REL({"x": -a})
-    else:
-        # y 方向移动 a，再移回 -a
-        G2.REL({"y": a})
-        G2.REL({"y": -a})
+        joint_state = agibot_gdk.JointState()
+        joint_state.position = 0.0  # 闭合
+        joint_states.states = [joint_state]
+        joint_states.nums = len(joint_states.states)
 
-    # 继续重复
+        print("正在夹紧左夹爪...")
+        result = robot.move_ee_pos(joint_states)
+        print(f"左夹爪控制完成 (返回值: {result})")
+
+        time.sleep(2)  # 等待动作完成
