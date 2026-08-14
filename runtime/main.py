@@ -1,36 +1,27 @@
+import random
 import time
 from minth import Minth
 
-G2 = Minth.G2(timeout=120)
+G2 = Minth.G2()
 
-# 依次导航到 0 → 1 → 2 → 0 号点
-print("[wzd] 第 1/4 步：导航到 0 号点")
-if not G2.GO(0):
-    print("[wzd] ✗ 导航到 0 号点失败，退出程序")
-    G2.close()
-    raise SystemExit
-time.sleep(2)
+while True:
+    # 1. 腰部旋转：随机弧度值 [-0.05, 0.05]
+    waist_val = random.uniform(-0.09, 0.09)
+    G2.JOINT("idx05_body_joint5", value=waist_val)
 
-print("[wzd] 第 2/4 步：导航到 1 号点")
-if not G2.GO(1):
-    print("[wzd] ✗ 导航到 1 号点失败，退出程序")
-    G2.close()
-    raise SystemExit
-time.sleep(2)
+    # 2. 随机位移量 a: [-0.2, 0.2]
+    a = random.uniform(-0.15, 0.15)
 
-print("[wzd] 第 3/4 步：导航到 2 号点")
-if not G2.GO(2):
-    print("[wzd] ✗ 导航到 2 号点失败，退出程序")
-    G2.close()
-    raise SystemExit
-time.sleep(2)
+    # 3. 随机方向选择 b: 1 或 2
+    b = random.randint(1, 2)
 
-print("[wzd] 第 4/4 步：导航到 0 号点")
-if not G2.GO(0):
-    print("[wzd] ✗ 导航到 0 号点失败，退出程序")
-    G2.close()
-    raise SystemExit
-time.sleep(2)
+    if b == 1:
+        # x 方向移动 a，再移回 -a
+        G2.REL({"x": a})
+        G2.REL({"x": -a})
+    else:
+        # y 方向移动 a，再移回 -a
+        G2.REL({"y": a})
+        G2.REL({"y": -a})
 
-print("[wzd] ✓ 全部点位已按顺序走完")
-G2.close()
+    # 继续重复

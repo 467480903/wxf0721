@@ -12,11 +12,17 @@ programs.py — 程序调试组件
     - copy             将 programs/{data} 复制到 main.py
     - codes            读取 main.py 内容，发布到 /humanoid/programs/codes
     - read_files       读取 programs/ 下所有 .py 文件列表，发布到 /humanoid/programs/files
+    - read_file        读取 programs/{data} 指定文件内容，发布到 /humanoid/programs/file_content
+    - upload           上传 .py 文件到 programs/，data: {"filename": "xxx.py", "content": "..."}
+    - delete           删除 programs/ 下指定 .py 文件，data: "xxx.py"
 
 发布主题：
   - /humanoid/programs/step   : {"lineno": 3, "code": "print(1)", "filename": "main.py"}
   - /humanoid/programs/codes  : {"code": "import sys\\nprint(1)\\n"}
   - /humanoid/programs/files  : {"files": ["a.py", "b.py"]}
+  - /humanoid/programs/file_content : {"filename": "a.py", "code": "...", "success": true/false}
+  - /humanoid/programs/upload_result : {"success": true, "filename": "xxx.py"} 或 {"success": false, "error": "..."}
+  - /humanoid/programs/delete_result : {"success": true, "filename": "xxx.py"} 或 {"success": false, "error": "..."}
 """
 
 import os
@@ -246,6 +252,145 @@ def handle_read_program_files():
     print(f"[程序] 已发布 {len(files)} 个文件: {files}")
 
 
+def handle_upload(data):
+    """上传 .py 文件到 programs/ 目录
+
+    Parameters
+    ----------
+    data : dict
+        {"filename": "xxx.py", "content": "文件内容字符串"}
+    """
+    if not data or not isinstance(data, dict):
+        _publish_upload_result(False, error="上传数据格式错误")
+        return
+
+    filename = data.get("filename", "").strip()
+    content = data.get("content", "")
+
+    if not filename:
+        _publish_upload_result(False, error="文件名为空")
+        return
+
+    if not filename.endswith('.py'):
+        _publish_upload_result(False, error=f"只支持 .py 文件: {filename}")
+        return
+
+    if '/' in filename or '\\' in filename or '..' in filename:
+        _publish_upload_result(False, error=f"非法文件名: {filename}")
+        return
+
+    if not os.path.exists(common.PROGRAMS_DIR):
+        os.makedirs(common.PROGRAMS_DIR, exist_ok=True)
+
+    target_path = os.path.join(common.PROGRAMS_DIR, filename)
+    try:
+        with open(target_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"[程序] 上传成功: {filename} ({len(content)} 字符)")
+        _publish_upload_result(True, filename=filename)
+        handle_read_program_files()
+    except Exception as e:
+        print(f"[程序] 上传失败: {e}")
+        _publish_upload_result(False, error=str(e))
+
+
+def _publish_upload_result(success, filename=None, error=None):
+    """发布上传结果"""
+    msg = {"success": success}
+    if filename:
+        msg["filename"] = filename
+    if error:
+        msg["error"] = error
+    common.publish(common.TOPIC_PROGRAMS_UPLOAD_RESULT, msg, qos=0)
+
+
+def handle_read_file(filename):
+    """读取 programs/ 下指定 .py 文件内容，发布到 /humanoid/programs/file_content
+
+    Parameters
+    ----------
+    filename : str
+        文件名，如 "a.py"
+    """
+    if not filename or not isinstance(filename, str):
+        _publish_file_content(filename or "", "", success=False, error="文件名为空")
+        return
+
+    if '/' in filename or '\\' in filename or '..' in filename:
+        _publish_file_content(filename, "", success=False, error=f"非法文件名: {filename}")
+        return
+
+    if not filename.endswith('.py'):
+        _publish_file_content(filename, "", success=False, error=f"只支持 .py 文件: {filename}")
+        return
+
+    filepath = os.path.join(common.PROGRAMS_DIR, filename)
+    if not os.path.exists(filepath):
+        _publish_file_content(filename, "", success=False, error=f"文件不存在: {filename}")
+        return
+
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            code = f.read()
+        _publish_file_content(filename, code, success=True)
+        print(f"[程序] 已读取文件: {filename} ({len(code)} 字符)")
+    except Exception as e:
+        _publish_file_content(filename, "", success=False, error=str(e))
+
+
+def _publish_file_content(filename, code, success=True, error=None):
+    """发布文件内容"""
+    msg = {"filename": filename, "code": code, "success": success}
+    if error:
+        msg["error"] = error
+    common.publish(common.TOPIC_PROGRAMS_FILE_CONTENT, msg, qos=0)
+
+
+def handle_delete(filename):
+    """删除 programs/ 下指定 .py 文件
+
+    Parameters
+    ----------
+    filename : str
+        要删除的文件名，如 "a.py"
+    """
+    if not filename or not isinstance(filename, str):
+        _publish_delete_result(False, filename=filename or "", error="文件名为空")
+        return
+
+    if '/' in filename or '\\' in filename or '..' in filename:
+        _publish_delete_result(False, filename=filename, error=f"非法文件名: {filename}")
+        return
+
+    if filename == "main.py":
+        _publish_delete_result(False, filename=filename, error="不能删除 main.py")
+        return
+
+    filepath = os.path.join(common.PROGRAMS_DIR, filename)
+    if not os.path.exists(filepath):
+        _publish_delete_result(False, filename=filename, error=f"文件不存在: {filename}")
+        return
+
+    try:
+        os.remove(filepath)
+        print(f"[程序] 已删除文件: {filename}")
+        _publish_delete_result(True, filename=filename)
+        handle_read_program_files()
+    except Exception as e:
+        print(f"[程序] 删除失败: {e}")
+        _publish_delete_result(False, filename=filename, error=str(e))
+
+
+def _publish_delete_result(success, filename=None, error=None):
+    """发布删除结果"""
+    msg = {"success": success}
+    if filename:
+        msg["filename"] = filename
+    if error:
+        msg["error"] = error
+    common.publish(common.TOPIC_PROGRAMS_DELETE_RESULT, msg, qos=0)
+
+
 def handle_codes():
     """读取 main.py 并发布到 /humanoid/programs/codes"""
     if not os.path.exists(common.MAIN_PY):
@@ -292,5 +437,11 @@ def handle_control(payload):
         handle_codes()
     elif cmd == "read_files":
         handle_read_program_files()
+    elif cmd == "upload":
+        handle_upload(data)
+    elif cmd == "read_file":
+        handle_read_file(data)
+    elif cmd == "delete":
+        handle_delete(data)
     else:
         print(f"[程序] 未知命令: {cmd}")

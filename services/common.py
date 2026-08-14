@@ -61,8 +61,11 @@ TOPIC_MAP_INFO       = "/humanoid/map/info"          # 服务端发布地图列�
 
 TOPIC_PROGRAMS_CONTROL = "/humanoid/programs/control"  # 客户端控制程序调试
 TOPIC_PROGRAMS_STEP    = "/humanoid/programs/step"     # 服务端发布执行步骤
-TOPIC_PROGRAMS_CODES   = "/humanoid/programs/codes"    # 服务端发布代码内容
+TOPIC_PROGRAMS_CODES   = "/humanoid/programs/codes"    # 服务端发布 main.py 代码内容
 TOPIC_PROGRAMS_FILES   = "/humanoid/programs/files"    # 服务端发布文件列表
+TOPIC_PROGRAMS_FILE_CONTENT = "/humanoid/programs/file_content"  # 服务端发布指定文件内容
+TOPIC_PROGRAMS_UPLOAD_RESULT = "/humanoid/programs/upload_result"  # 服务端发布上传结果
+TOPIC_PROGRAMS_DELETE_RESULT = "/humanoid/programs/delete_result"  # 服务端发布删除结果
 
 TOPIC_MODBUS_DATA      = "/humanoid/modbus/data"       # 服务端发布 Modbus 数据
 TOPIC_MODBUS_CONTROL   = "/humanoid/modbus/control"    # 客户端控制 Modbus 读写

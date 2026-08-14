@@ -1424,6 +1424,80 @@ html, body {
     background: #ecf5ff;
     color: #409eff;
 }
+.file-list li.file-selected {
+    background: #409eff;
+    color: #fff;
+}
+.dialog-btn-bar {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+.dialog-btn {
+    min-width: 70px !important;
+    height: 36px !important;
+    font-size: 14px !important;
+}
+.dialog-btn-bar-noflexwrap {
+    flex-wrap: nowrap !important;
+    gap: 8px;
+}
+.save-dialog-files {
+    width: 600px !important;
+    padding: 20px 24px !important;
+}
+.save-dialog-edit {
+    width: 80vw !important;
+    max-width: 900px;
+    height: 80vh;
+    max-height: 700px;
+    padding: 20px 24px !important;
+    display: flex;
+    flex-direction: column;
+}
+.pv-dialog-title {
+    color: #409eff;
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.pv-empty-tip {
+    color: #888;
+    padding: 20px;
+    text-align: center;
+    border: 1px solid #e4e7ed;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    background: #fafafa;
+}
+.pv-edit-textarea {
+    flex: 1;
+    width: 100%;
+    min-height: 300px;
+    padding: 12px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #303133;
+    background: #fafbfc;
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    resize: none;
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+    tab-size: 4;
+    -moz-tab-size: 4;
+    outline: none;
+    box-sizing: border-box;
+}
+.pv-edit-textarea:focus {
+    border-color: #409eff;
+    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.15);
+}
 @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.6; }

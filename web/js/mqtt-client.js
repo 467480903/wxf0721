@@ -19,6 +19,9 @@
 //   /humanoid/programs/step       服务端发布执行步骤
 //   /humanoid/programs/codes      服务端发布代码内容
 //   /humanoid/programs/files      服务端发布文件列表
+//   /humanoid/programs/file_content  服务端发布指定文件内容
+//   /humanoid/programs/upload_result  服务端发布上传结果
+//   /humanoid/programs/delete_result  服务端发布删除结果
 
 const MQTT_BROKER = location.hostname || '10.2.236.6';
 const MQTT_PORT   = 9001;
@@ -34,6 +37,9 @@ const MAP_INFO_TOPIC = '/humanoid/map/info';
 const PROGRAMS_STEP_TOPIC = '/humanoid/programs/step';
 const PROGRAMS_CODES_TOPIC = '/humanoid/programs/codes';
 const PROGRAMS_FILES_TOPIC = '/humanoid/programs/files';
+const PROGRAMS_FILE_CONTENT_TOPIC = '/humanoid/programs/file_content';
+const PROGRAMS_UPLOAD_RESULT_TOPIC = '/humanoid/programs/upload_result';
+const PROGRAMS_DELETE_RESULT_TOPIC = '/humanoid/programs/delete_result';
 const MODBUS_DATA_TOPIC = '/humanoid/modbus/data';
 
 // 客户端发布主题（客户端发送命令）
@@ -58,6 +64,9 @@ class MqttClient {
         this.runtimeStepCallbacks = [];
         this.runtimeCodesCallbacks = [];
         this.runtimeProgramFilesCallbacks = [];
+        this.runtimeFileContentCallbacks = [];
+        this.runtimeUploadResultCallbacks = [];
+        this.runtimeDeleteResultCallbacks = [];
         this.dataRespCallbacks = [];
         this.mapPointsCallbacks = [];
         this.mapInfoCallbacks = [];
@@ -98,6 +107,12 @@ class MqttClient {
                     this.runtimeCodesCallbacks.forEach(cb => cb(data));
                 } else if (message.destinationName === PROGRAMS_FILES_TOPIC) {
                     this.runtimeProgramFilesCallbacks.forEach(cb => cb(data));
+                } else if (message.destinationName === PROGRAMS_FILE_CONTENT_TOPIC) {
+                    this.runtimeFileContentCallbacks.forEach(cb => cb(data));
+                } else if (message.destinationName === PROGRAMS_UPLOAD_RESULT_TOPIC) {
+                    this.runtimeUploadResultCallbacks.forEach(cb => cb(data));
+                } else if (message.destinationName === PROGRAMS_DELETE_RESULT_TOPIC) {
+                    this.runtimeDeleteResultCallbacks.forEach(cb => cb(data));
                 } else if (message.destinationName === MAP_POINTS_TOPIC) {
                     this.mapPointsCallbacks.forEach(cb => cb(data));
                 } else if (message.destinationName === MAP_INFO_TOPIC) {
@@ -122,6 +137,9 @@ class MqttClient {
                 this.client.subscribe(PROGRAMS_STEP_TOPIC, { qos: 0 });
                 this.client.subscribe(PROGRAMS_CODES_TOPIC, { qos: 0 });
                 this.client.subscribe(PROGRAMS_FILES_TOPIC, { qos: 0 });
+                this.client.subscribe(PROGRAMS_FILE_CONTENT_TOPIC, { qos: 0 });
+                this.client.subscribe(PROGRAMS_UPLOAD_RESULT_TOPIC, { qos: 0 });
+                this.client.subscribe(PROGRAMS_DELETE_RESULT_TOPIC, { qos: 0 });
                 this.client.subscribe(MAP_POINTS_TOPIC, { qos: 0 });
                 this.client.subscribe(MAP_INFO_TOPIC, { qos: 0 });
                 this.client.subscribe(MODBUS_DATA_TOPIC, { qos: 0 });
@@ -227,6 +245,45 @@ class MqttClient {
 
     removeRuntimeProgramFilesCallback(callback) {
         this.runtimeProgramFilesCallbacks = this.runtimeProgramFilesCallbacks.filter(cb => cb !== callback);
+    }
+
+    /**
+     * 注册指定文件内容回调
+     */
+    addRuntimeFileContentCallback(callback) {
+        if (!this.runtimeFileContentCallbacks.includes(callback)) {
+            this.runtimeFileContentCallbacks.push(callback);
+        }
+    }
+
+    removeRuntimeFileContentCallback(callback) {
+        this.runtimeFileContentCallbacks = this.runtimeFileContentCallbacks.filter(cb => cb !== callback);
+    }
+
+    /**
+     * 注册程序上传结果回调
+     */
+    addRuntimeUploadResultCallback(callback) {
+        if (!this.runtimeUploadResultCallbacks.includes(callback)) {
+            this.runtimeUploadResultCallbacks.push(callback);
+        }
+    }
+
+    removeRuntimeUploadResultCallback(callback) {
+        this.runtimeUploadResultCallbacks = this.runtimeUploadResultCallbacks.filter(cb => cb !== callback);
+    }
+
+    /**
+     * 注册程序删除结果回调
+     */
+    addRuntimeDeleteResultCallback(callback) {
+        if (!this.runtimeDeleteResultCallbacks.includes(callback)) {
+            this.runtimeDeleteResultCallbacks.push(callback);
+        }
+    }
+
+    removeRuntimeDeleteResultCallback(callback) {
+        this.runtimeDeleteResultCallbacks = this.runtimeDeleteResultCallbacks.filter(cb => cb !== callback);
     }
 
     /**

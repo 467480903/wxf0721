@@ -34,3 +34,6 @@ time.sleep(2)
 
 print("[wzd] ✓ 全部点位已按顺序走完")
 G2.close()
+
+
+
