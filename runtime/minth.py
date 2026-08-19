@@ -16,8 +16,9 @@ Minth 机器人控制类库
     robot.REL({"x": 0.3})       # 底盘前进 0.3 米
     robot.OFFSET({"lx": 20})    # 左末端相对移动 20mm
     robot.GRIPPER({"left": 0.5, "right": 0.5})
-    robot.YOLO("7.14.pt")       # YOLO 目标检测
-    robot.YOLO("wxf.pt")        # 使用 wxf.pt 模型检测
+    robot.YOLO("7.14.pt")               # YOLO 目标检测（使用服务端默认 IP）
+    robot.YOLO("wxf.pt")                # 使用 wxf.pt 模型检测
+    robot.YOLO("wxf.pt", "10.2.236.7")  # 指定自定义 YOLO 服务端 IP
     robot.CHASSIS_CORRECT()     # 根据 detect.json 纠正底盘水平偏移
     robot.JOINT("idx11_head_joint1", offset=0.01)   # 单关节增量微调
     robot.JOINT("idx11_head_joint1", value=0.0)     # 单关节运动到指定角度
@@ -176,6 +177,44 @@ class G2(_RobotBase):
         """
         return self._send_and_wait("arms", name)
 
+    def LEFT(self, name):
+        """左臂关节运动（仅左臂）
+        Args:
+            name: 动作名称字符串，对应 datas/joints/left/{name}.json
+                  例如 "A_PLACE_LOOK"
+        Returns:
+            bool
+        """
+        return self._send_and_wait("left", name)
+
+    def RIGHT(self, name):
+        """右臂关节运动（仅右臂）
+        Args:
+            name: 动作名称字符串，对应 datas/joints/right/{name}.json
+                  例如 "A_PLACE_LOOK"
+        Returns:
+            bool
+        """
+        return self._send_and_wait("right", name)
+
+    def HEAD(self, name):
+        """头部关节运动
+        Args:
+            name: 动作名称字符串，对应 datas/joints/head/{name}.json
+        Returns:
+            bool
+        """
+        return self._send_and_wait("head", name)
+
+    def WAIST(self, name):
+        """腰部关节运动
+        Args:
+            name: 动作名称字符串，对应 datas/joints/waist/{name}.json
+        Returns:
+            bool
+        """
+        return self._send_and_wait("waist", name)
+
     def OFFSET(self, data):
         """末端执行器相对移动
         Args:
@@ -217,24 +256,28 @@ class G2(_RobotBase):
         """
         return self._send_and_wait("grab", data)
 
-    def YOLO(self, model="wxf.pt"):
+    def YOLO(self, model="wxf.pt", ip=None):
         """YOLO 目标检测
 
         拍摄头部彩色+深度图，发送给 YOLO 服务进行检测，等待完成后返回。
 
-        通过 MQTT 向 /humanoid/camera/control 发送 {"command":"detect","yolo":"<model>"}，
+        通过 MQTT 向 /humanoid/camera/control 发送 {"command":"detect","yolo":"<model>","yolo_ip":"<ip>"}，
         camera.py 执行完毕后会向 /humanoid/commands/done 发送 {"command":"done"}。
 
         Args:
             model: YOLO 模型文件名，如 "wxf.pt"、"7.14.pt"
+            ip:   可选，自定义 YOLO 检测服务端 IP 地址；
+                  不传或为 None 时使用 camera.py 中的默认配置 YOLO_TCP_HOST
         Returns:
             bool: True=检测完成，False=超时
         """
         payload = {"command": "detect", "yolo": model}
+        if ip:
+            payload["yolo_ip"] = ip
         self._done_event.clear()
         msg_str = json.dumps(payload, ensure_ascii=False)
         self._client.publish(CAMERA_TOPIC, msg_str, qos=2)
-        print(f"[Minth] → YOLO: model={model}")
+        print(f"[Minth] → YOLO: model={model}, ip={ip or 'default'}")
 
         # YOLO 检测耗时较长，使用较长超时
         done = self._done_event.wait(timeout=120)

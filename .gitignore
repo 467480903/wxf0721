@@ -6,3 +6,7 @@ python3.*
 *.pyc
 lerobot/__pycache__/
 dds_view.*
+runtime/main.py
+runtime/apriltag_36h11_print/
+images/
+runtime/references/

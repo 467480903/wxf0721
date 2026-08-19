@@ -386,13 +386,15 @@ def _save_continuous_head_color():
 #  YOLO 目标检测
 # ═══════════════════════════════════════════════════════════
 
-def run_yolo_detect(model_name):
+def run_yolo_detect(model_name, ip=None):
     """拍摄头部彩深图 → 保存图片 → TCP 发给 YOLO 服务 → 保存检测结果
 
     Parameters
     ----------
     model_name : str
         YOLO 模型文件名，如 "wxf.pt"
+    ip : str or None
+        自定义 YOLO 服务端 IP；None 时使用模块默认 YOLO_TCP_HOST
     """
     # 1. 拍摄头部彩色 + 深度
     color_img = _capture_head_image(agibot_gdk.CameraType.kHeadColor, "彩色")
@@ -421,10 +423,11 @@ def run_yolo_detect(model_name):
         "model": model_name,
     }
     message = json.dumps(payload, ensure_ascii=False) + "\n"
-    print(f"[YOLO] 请求: rgb={len(rgb_b64)}, depth={len(depth_b64)}, model={model_name}")
+    host = ip or YOLO_TCP_HOST
+    print(f"[YOLO] 请求: rgb={len(rgb_b64)}, depth={len(depth_b64)}, model={model_name}, host={host}")
 
     # 4. TCP 发送并接收回复
-    result = _tcp_detect_request(message)
+    result = _tcp_detect_request(message, ip=ip)
     if result is None:
         return None
 
@@ -498,14 +501,23 @@ def _save_detect_images(color_img, depth_img, ts):
         print(f"[YOLO] 深度图保存失败: {e}")
 
 
-def _tcp_detect_request(message):
-    """通过 TCP 发送检测请求并接收回复"""
+def _tcp_detect_request(message, ip=None):
+    """通过 TCP 发送检测请求并接收回复
+
+    Parameters
+    ----------
+    message : str
+        已序列化的 JSON 请求报文（末尾含 "\\n"）
+    ip : str or None
+        自定义 YOLO 服务端 IP；None 时使用模块默认 YOLO_TCP_HOST
+    """
+    host = ip or YOLO_TCP_HOST
     sock = None
     try:
-        print(f"[YOLO] 连接 {YOLO_TCP_HOST}:{YOLO_TCP_PORT} ...")
+        print(f"[YOLO] 连接 {host}:{YOLO_TCP_PORT} ...")
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(YOLO_RECV_TIMEOUT)
-        sock.connect((YOLO_TCP_HOST, YOLO_TCP_PORT))
+        sock.connect((host, YOLO_TCP_PORT))
         sock.sendall(message.encode("utf-8"))
         print("[YOLO] 报文已发送，等待回复...")
 
@@ -605,8 +617,10 @@ def handle_control(payload):
         if not yolo_model:
             print("[相机] detect 缺少 yolo 字段")
             return
-        print(f"[相机] YOLO 检测: model={yolo_model}")
-        t = threading.Thread(target=_run_detect, args=(yolo_model,), daemon=True)
+        # 可选：客户端指定自定义 YOLO 服务端 IP，不传则使用本模块默认 YOLO_TCP_HOST
+        yolo_ip = payload.get("yolo_ip")
+        print(f"[相机] YOLO 检测: model={yolo_model}, ip={yolo_ip or 'default'}")
+        t = threading.Thread(target=_run_detect, args=(yolo_model, yolo_ip), daemon=True)
         t.start()
 
     else:
@@ -623,10 +637,18 @@ def _run_save(cameras):
         common.publish_done("save_photo")
 
 
-def _run_detect(model_name):
-    """在子线程中执行 YOLO 检测，完成后发送 done 通知"""
+def _run_detect(model_name, ip=None):
+    """在子线程中执行 YOLO 检测，完成后发送 done 通知
+
+    Parameters
+    ----------
+    model_name : str
+        YOLO 模型文件名
+    ip : str or None
+        自定义 YOLO 服务端 IP；None 时使用模块默认 YOLO_TCP_HOST
+    """
     try:
-        run_yolo_detect(model_name)
+        run_yolo_detect(model_name, ip=ip)
     except Exception as e:
         print(f"[相机] 检测异常: {e}")
     finally:

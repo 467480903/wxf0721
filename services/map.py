@@ -4,10 +4,9 @@
 map.py — 地图管理与SLAM建图组件
 
 职责：
-  - 读取所有地图点位（地图引导点 + 本地保存的点位），发布到 /humanoid/map/points
+  - 从 G2 机器人 GDK 当前地图重新读取所有导航点，发布到 /humanoid/map/points
   - 接收 /humanoid/map/control 命令：
-      read_points      读取并发布所有地图点位
-      save_point       保存当前底盘位姿为地图点位
+      read_points      从 GDK 重新读取导航点并发布
       start_mapping    开始SLAM建图
       stop_mapping     结束建图（保存地图）
       read_maps        读取并发布地图列表
@@ -22,18 +21,13 @@ map.py — 地图管理与SLAM建图组件
 
 消息格式（/humanoid/map/control，订阅）：
   {"command": "read_points"}
-  {"command": "save_point", "data": {"name": "point_name"}}
   {"command": "start_mapping"}
   {"command": "stop_mapping"}
   {"command": "read_maps"}
   {"command": "switch_map", "data": {"map_id": "xxx"}}
 """
 
-import os
-import json
-
 import common
-import data as db
 
 # 本地跟踪建图状态（GDK接口没有直接暴露is_mapping布尔值）
 _is_mapping = False
@@ -44,7 +38,7 @@ _is_mapping = False
 # ═══════════════════════════════════════════════════════════
 
 def read_all_map_points():
-    """读取所有地图点位（地图引导点 + 数据库中的本地点位）
+    """读取所有地图导航点（仅来自 GDK 当前地图 + waypoints.json 合并结果）
 
     Returns
     -------
@@ -52,8 +46,6 @@ def read_all_map_points():
         点位列表，每项包含 name / source / position / orientation
     """
     points = []
-
-    # 1. 从地图读取引导点
     try:
         for name, wp in common.nav.waypoints.items():
             pos = wp.get("position", [0, 0, 0])
@@ -65,44 +57,24 @@ def read_all_map_points():
                 "orientation": ori,
             })
     except Exception as e:
-        print(f"  [地图] 读取地图引导点失败: {e}")
-
-    # 2. 从数据库读取本地保存的点位
-    for pt in db.get_map_points(source="local"):
-        points.append(pt)
-
+        print(f"  [地图] 读取地图导航点失败: {e}")
     return points
 
 
 def handle_read_points():
-    """读取所有地图点位并发布到 /humanoid/map/points"""
+    """从 GDK 当前地图重新读取所有导航点并发布到 /humanoid/map/points
+
+    说明：先调 common.nav.reload_waypoints() 从 GDK 拉取最新点位，
+         再读取内存中的 waypoints 字典并发布。
+    """
+    try:
+        common.nav.reload_waypoints()
+    except Exception as e:
+        print(f"  [地图] 从 GDK 重新加载导航点失败: {e}")
     points = read_all_map_points()
     resp = {"command": "map_points", "data": points}
     common.publish(common.TOPIC_MAP_POINTS, resp, qos=0)
     print(f"  [地图] 已发布 {len(points)} 个地图点位到 {common.TOPIC_MAP_POINTS}")
-
-
-# ═══════════════════════════════════════════════════════════
-#  地图点位保存
-# ═══════════════════════════════════════════════════════════
-
-def handle_save_point(data):
-    """保存当前底盘位姿为地图点位到数据库
-
-    data: {"name": "point_name"}
-    """
-    save_name = data.get("name", "unnamed") if isinstance(data, dict) else "unnamed"
-
-    # 获取当前底盘位姿
-    pose = common.nav.get_current_pose()
-    pos = pose.get("position", [0, 0, 0])
-    ori = pose.get("orientation", [0, 0, 0, 1])
-
-    position = [round(pos[0], 6), round(pos[1], 6), round(pos[2], 6)]
-    orientation = [round(ori[0], 6), round(ori[1], 6), round(ori[2], 6), round(ori[3], 6)]
-
-    db.save_map_point(save_name, position, orientation, source="local")
-    print(f"  [地图] 地图点位已保存到数据库: {save_name}")
 
 
 # ═══════════════════════════════════════════════════════════
@@ -186,7 +158,7 @@ def handle_switch_map(map_id):
         mid = int(map_id)
         common.gmap.switch_map(mid)
         print(f"  [地图] 已切换到地图: {mid}")
-        common.nav.list_waypoints()
+        common.nav.reload_waypoints()
         publish_maps_list()
     except Exception as e:
         print(f"  [地图] 切换地图失败: {e}")
@@ -209,8 +181,6 @@ def handle_control(payload):
 
     if cmd in ("read_points", "read_map_points"):
         handle_read_points()
-    elif cmd in ("save_point", "save_map_point"):
-        handle_save_point(data)
     elif cmd == "start_mapping":
         handle_start_mapping()
     elif cmd == "stop_mapping":

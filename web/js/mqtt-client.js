@@ -415,7 +415,7 @@ class MqttClient {
 
     /**
      * 发送地图点位控制命令到 /humanoid/map/control
-     * @param {string} command - 命令名（read_points/save_point）
+     * @param {string} command - 命令名（read_points/switch_map/start_mapping/stop_mapping/read_maps）
      * @param {*} data - 命令数据
      */
     publishMapControl(command, data = null) {

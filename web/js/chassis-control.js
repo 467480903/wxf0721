@@ -60,11 +60,9 @@ export default {
                     </div>
                 </div>
                 <div class="cc-stepper">
-                    <label>保存点位</label>
+                    <label>地图点位</label>
                     <div class="cc-stepper-ctrl">
-                        <input type="text" class="cc-name-input" v-model="pointName" placeholder="名称" />
-                        <button class="cc-btn cc-btn-save" @click="savePoint">保存</button>
-                        <button class="cc-btn cc-btn-refresh" @click="loadPoints">刷新</button>
+                        <button class="cc-btn cc-btn-refresh" @click="loadPoints">读取点位</button>
                     </div>
                 </div>
                 <div class="cc-stepper cc-map-stepper">
@@ -111,7 +109,6 @@ export default {
         return {
             moveStep: 100,        // 毫米
             rotStep: 0.1,         // 弧度
-            pointName: '',
             mapPoints: [],
             selectedPoint: '',
             mapList: [],
@@ -156,19 +153,10 @@ export default {
             mqttClient.publishCommand('go_rel', { x: 0, y: 0, yaw_rad: rad });
             console.log('[底盘] 旋转', rad, 'rad');
         },
-        savePoint() {
-            if (!this.pointName.trim()) {
-                alert('请输入点位名称');
-                return;
-            }
-            mqttClient.publishMapControl('save_point', { name: this.pointName.trim() });
-            console.log('[底盘] 保存点位', this.pointName);
-            this.pointName = '';
-            setTimeout(() => this.loadPoints(), 500);
-        },
         loadPoints() {
+            // 从 G2 机器人 GDK 当前地图重新读取导航点
             mqttClient.publishMapControl('read_points');
-            console.log('[底盘] 请求地图点位');
+            console.log('[底盘] 从 GDK 重新读取地图点位');
         },
         switchMap() {
             if (!this.selectedMapId) return;

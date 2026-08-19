@@ -37,10 +37,14 @@ PROJECT_DIR="$(cd "$RUN_DIR/.." && pwd)"
 cd "$RUN_DIR"
 
 # 加载 GDK 环境变量
+#   注意：source 调用必须显式传入绝对路径参数，否则 env.sh 会继承
+#   本脚本的 $1（start/stop/status/restart）作为其 DIR，导致
+#   PYTHONPATH / APP_CONF_PATH 变成相对路径（如 "start/gdk/lib"），
+#   python 找不到 agibot_gdk 模块。
 ENV_FILE="/home/agi/app/env.sh"
 if [ -f "$ENV_FILE" ]; then
     echo "[run.sh] 正在加载环境变量: source $ENV_FILE"
-    source "$ENV_FILE"
+    source "$ENV_FILE" "$(dirname "$ENV_FILE")"
     cd "$RUN_DIR"
 else
     echo "[run.sh] ⚠ 警告: 环境文件不存在: $ENV_FILE"

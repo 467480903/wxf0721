@@ -108,25 +108,11 @@ class RobotController:
         self.slam = agibot_gdk.Slam()
         time.sleep(1.5)
 
-        # 读取地图导航点
-        self._log("正在从地图读取导航点...")
-        self.waypoints, self.map_id = self._load_map_waypoints()
-        self._log(f"地图 id={self.map_id}，读到 {len(self.waypoints)} 个导航点")
-
-        # 合并 waypoints.json
-        json_path = waypoints_json or os.path.join(
+        # 导航点：构造函数只调一次 reload；后续可通过 reload_waypoints() 重新读取
+        self._waypoints_json = waypoints_json or os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "waypoints.json"
         )
-        if os.path.exists(json_path):
-            with open(json_path, encoding="utf-8") as f:
-                extra = json.load(f)
-            for k, v in extra.items():
-                if k not in self.waypoints:
-                    v["source"] = "json"
-                    self.waypoints[k] = v
-            self._log(f"已合并 {json_path}，共 {len(self.waypoints)} 个导航点")
-
-        self._wp_list = list(self.waypoints.keys())
+        self.reload_waypoints()
 
         # 注册退出信号
         signal.signal(signal.SIGINT,  self._on_exit)
@@ -247,6 +233,30 @@ class RobotController:
             print(f"[{i}]    {name:<10} {src:<6} ({pos[0]:.4f}, {pos[1]:.4f})")
         print(f"{'─'*62}")
         print(f"共 {len(self.waypoints)} 个导航点\n")
+
+    def reload_waypoints(self):
+        """从 GDK 当前地图重新加载导航点，并合并 waypoints.json
+
+        调用时机：
+        - 构造函数初始化
+        - 切换地图后
+        - 网页前端“读取点位”按钮触发后，需读取最新点位时
+        """
+        self._log("正在从地图读取导航点...")
+        self.waypoints, self.map_id = self._load_map_waypoints()
+        self._log(f"地图 id={self.map_id}，读到 {len(self.waypoints)} 个地图导航点")
+
+        # 合并 waypoints.json（仅补充地图里不存在的点）
+        if os.path.exists(self._waypoints_json):
+            with open(self._waypoints_json, encoding="utf-8") as f:
+                extra = json.load(f)
+            for k, v in extra.items():
+                if k not in self.waypoints:
+                    v["source"] = "json"
+                    self.waypoints[k] = v
+            self._log(f"已合并 {self._waypoints_json}，共 {len(self.waypoints)} 个导航点")
+
+        self._wp_list = list(self.waypoints.keys())
 
     def get_current_pose(self) -> dict:
         """返回当前位姿字典 {position:[x,y,z], orientation:[qx,qy,qz,qw]}"""
