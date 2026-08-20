@@ -10,3 +10,4 @@ runtime/main.py
 runtime/apriltag_36h11_print/
 images/
 runtime/references/
+detect/*.json

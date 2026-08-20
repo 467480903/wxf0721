@@ -32,7 +32,12 @@ HONDA0818_Place.py — A/B 件放置流程
 """
 
 import math
+import os
+import sys
 import time
+
+# 让 runtime/ 目录在 sys.path 中，命令行直接运行也能 import minth
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from minth import Minth
 

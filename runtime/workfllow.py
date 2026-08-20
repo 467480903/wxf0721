@@ -23,10 +23,10 @@ G2 = Minth.G2()
 # G2.OFFSET({"lx": -200, "rx": -200})
 
 # 取放工件
-for i in range(1, 4):
+for i in [1,2,3,4]:
     G2.GRIPPER({"left": -0.7, "right": -0.7})
     G2.WBC("Wdown2")
-    # G2.GO()
+    G2.GO(0)
     positioning("/data/wxf/wxf0721/runtime/references/reference_1-2.json", G2=G2)
     pose = f'r{i}'
     print(f'正在去抓取{pose}')
@@ -34,7 +34,9 @@ for i in range(1, 4):
     G2.REL({"x": 0.14}) 
     G2.OFFSET({"rz": 30})
     G2.GRIPPER({"left": -0, "right": -0})
-    G2.REL({"x": -0.5}) 
+    time.sleep(2)
+    G2.OFFSET({"rz": 10})
+    G2.REL({"x": -1}) 
     
     # for j in range(3):
     #     img_path = capture_head_color(G2)
@@ -42,20 +44,20 @@ for i in range(1, 4):
     #     result = analyze_top_workpiece(img)
     #     if result != 0:
     #         break
-    result = 2 #i%2
+    break
 
     # G2.ARMS("put001")
     # G2.ARMS("emm")
 
     if result == 1:
-        G2.TTS("这是大工件")
+        # G2.TTS("这是大工件")
         # G2.GO(1)
         # positioning("/data/cg/wxf0721/runtime/references/ref_3-4_20260808_161746.json", G2=G2)
-        G2.ARMS("put002")    
+        G2.ARMS("put002")
         G2.ARMS("put001")
         G2.OFFSET({"rz": -100})
         G2.GRIPPER({"left": -0.7, "right": -0.7})
-        G2.REL({"x": -0.5}) 
+        G2.REL({"x": -0.5})
 
     elif result == 0:
         G2.TTS("这是小工件")
