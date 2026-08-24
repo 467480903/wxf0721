@@ -39,8 +39,9 @@ cd "$RUN_DIR"
 # 加载 GDK 环境变量
 ENV_FILE="/home/agi/app/env.sh"
 if [ -f "$ENV_FILE" ]; then
-    echo "[run.sh] 正在加载环境变量: source $ENV_FILE"
-    source "$ENV_FILE"
+    echo "[run.sh] 正在加载环境变量: source $ENV_FILE /home/agi/app"
+    # 传入 /home/agi/app 作为目录参数，避免 env.sh 误用脚本的 $1
+    source "$ENV_FILE" /home/agi/app
     cd "$RUN_DIR"
 else
     echo "[run.sh] ⚠ 警告: 环境文件不存在: $ENV_FILE"

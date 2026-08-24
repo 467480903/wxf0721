@@ -176,6 +176,37 @@ class G2(_RobotBase):
         """
         return self._send_and_wait("arms", name)
 
+    def LEFT(self, data):
+        """左臂关节运动（内联关节角）
+        Args:
+            data: dict 或 str。dict 为内联关节角（弧度），
+                  str 为动作名称（对应 datas/joints/left/{name}.json）
+                  如 {"idx21_arm_l_joint1": 1.92, "idx22_arm_l_joint2": -1.38, ...}
+        Returns:
+            bool
+        """
+        return self._send_and_wait("left", data)
+
+    def PNC_FORWARD(self, distance, speed=0.1):
+        """PNC 前进/后退（带速度控制）
+        Args:
+            distance: 距离（米），正=前进，负=后退
+            speed:    速度（m/s），默认 0.1
+        Returns:
+            bool
+        """
+        return self._send_and_wait("pnc_forward", {"distance": distance, "speed": speed})
+
+    def PNC_ROTATE(self, angle_deg, speed=0.1):
+        """PNC 原地旋转（带速度控制）
+        Args:
+            angle_deg: 角度（度），正=左转，负=右转
+            speed:     角速度（rad/s），默认 0.1
+        Returns:
+            bool
+        """
+        return self._send_and_wait("pnc_rotate", {"angle": angle_deg, "speed": speed})
+
     def OFFSET(self, data):
         """末端执行器相对移动
         Args:

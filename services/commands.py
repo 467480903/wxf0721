@@ -197,6 +197,50 @@ def handle_go_rel(data, msg=None):
 
 
 # ═══════════════════════════════════════════════════════════
+#  PNC 底盘速度控制（前进/后退/原地旋转，带速度参数）
+# ═══════════════════════════════════════════════════════════
+
+def handle_pnc_forward(data, msg=None):
+    """PNC 前进/后退（带速度控制）
+
+    data 格式: {"distance": 2.0, "speed": 0.1}
+      distance: 距离（米），正=前进，负=后退
+      speed:    速度（m/s），默认 0.25
+    """
+    distance = float(data.get("distance", 0.0))
+    speed = float(data.get("speed", 0.25))
+    print(f"  [PNC] 前进: distance={distance:+.2f}m  speed={speed:.2f}m/s")
+    try:
+        if not common.nav.move_forward(distance, speed):
+            print(f"  [PNC] 前进失败")
+        else:
+            print(f"  [PNC] 前进完成")
+    except Exception as e:
+        print(f"  [PNC] 异常: {e}")
+
+
+def handle_pnc_rotate(data, msg=None):
+    """PNC 原地旋转（带速度控制）
+
+    data 格式: {"angle": 90, "speed": 0.1}
+      angle: 角度（度），正=左转，负=右转
+      speed: 角速度（rad/s），默认 0.4
+    """
+    import math
+    angle_deg = float(data.get("angle", 0.0))
+    speed = float(data.get("speed", 0.4))
+    angle_rad = math.radians(angle_deg)
+    print(f"  [PNC] 旋转: angle={angle_deg:+.1f}°  speed={speed:.2f}rad/s")
+    try:
+        if not common.nav.rotate(angle_rad, speed):
+            print(f"  [PNC] 旋转失败")
+        else:
+            print(f"  [PNC] 旋转完成")
+    except Exception as e:
+        print(f"  [PNC] 异常: {e}")
+
+
+# ═══════════════════════════════════════════════════════════
 #  命令分发表
 # ═══════════════════════════════════════════════════════════
 
@@ -208,6 +252,8 @@ COMMAND_HANDLERS = {
     "cam_head":    handle_cam_head,
     "go":          handle_go,
     "go_rel":      handle_go_rel,
+    "pnc_forward": handle_pnc_forward,
+    "pnc_rotate":  handle_pnc_rotate,
 }
 
 
