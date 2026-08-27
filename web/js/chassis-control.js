@@ -123,6 +123,9 @@ export default {
             viewX: 0,             // 画布中心对应的地图坐标 X
             viewY: 0,             // 画布中心对应的地图坐标 Y
             _onMapInfo: null,
+            _onMapGrid: null,
+            gridData: null,       // 解码后的栅格地图数据 {width, height, resolution, origin, cells: Int8Array}
+            gridCanvas: null,     // 离屏 canvas 缓存栅格图像
         };
     },
     computed: {
@@ -174,14 +177,18 @@ export default {
             if (!this.selectedMapId) return;
             mqttClient.publishMapControl('switch_map', { map_id: this.selectedMapId });
             console.log('[底盘] 切换地图', this.selectedMapId);
-            setTimeout(() => this.loadPoints(), 1000);
+            setTimeout(() => {
+                this.loadPoints();
+                mqttClient.publishMapControl('load_grid', { map_id: this.selectedMapId });
+            }, 1000);
         },
         gotoPoint() {
             if (!this.selectedPoint) return;
             const pt = this.mapPoints.find(p => p.name === this.selectedPoint);
             if (!pt) return;
-            if (pt.source === 'map' && /^\\d+$/.test(pt.name)) {
-                mqttClient.publishCommand('go', parseInt(pt.name));
+            if (pt.source === 'map' && /^\d+$/.test(pt.name)) {
+                // 后端点位序号从 0 开始，前端显示从 1 开始，发送时需减 1
+                mqttClient.publishCommand('go', parseInt(pt.name) - 1);
             } else {
                 mqttClient.publishCommand('go', pt.name);
             }
@@ -216,6 +223,70 @@ export default {
                 console.log('[底盘] 收到', this.mapList.length, '个地图');
             }
         },
+        onMapGrid(data) {
+            if (data && data.command === 'occupancy_grid' && data.data) {
+                const g = data.data;
+                try {
+                    const binary = atob(g.data_b64);
+                    const cells = new Int8Array(g.width * g.height);
+                    for (let i = 0; i < binary.length; i++) {
+                        cells[i] = binary.charCodeAt(i) << 24 >> 24;
+                    }
+                    this.gridData = {
+                        width: g.width,
+                        height: g.height,
+                        resolution: g.resolution,
+                        originX: g.origin.position[0],
+                        originY: g.origin.position[1],
+                        cells: cells,
+                    };
+                    this.buildGridCanvas();
+                    console.log('[底盘] 收到栅格地图:', g.map_name,
+                        g.width + 'x' + g.height, 'res=' + g.resolution + 'm');
+                } catch (e) {
+                    console.error('[底盘] 栅格地图解码失败:', e);
+                }
+            }
+        },
+        buildGridCanvas() {
+            const g = this.gridData;
+            if (!g) return;
+            const offscreen = document.createElement('canvas');
+            offscreen.width = g.width;
+            offscreen.height = g.height;
+            const octx = offscreen.getContext('2d');
+            const img = octx.createImageData(g.width, g.height);
+            for (let row = 0; row < g.height; row++) {
+                for (let col = 0; col < g.width; col++) {
+                    const idx = (g.height - 1 - row) * g.width + col;
+                    const val = g.cells[idx];
+                    let r = 255, gr = 255, b = 255, a = 0;
+                    if (val >= 65) {
+                        r = 80; gr = 80; b = 80; a = 200;
+                    } else if (val >= 0) {
+                        r = 220; gr = 230; b = 240; a = 60;
+                    }
+                    const p = (row * g.width + col) * 4;
+                    img.data[p] = r;
+                    img.data[p + 1] = gr;
+                    img.data[p + 2] = b;
+                    img.data[p + 3] = a;
+                }
+            }
+            octx.putImageData(img, 0, 0);
+            this.gridCanvas = offscreen;
+            this.autoCenterView();
+        },
+        autoCenterView() {
+            const g = this.gridData;
+            if (!g) return;
+            const mapCenterX = g.originX + g.width * g.resolution / 2;
+            const mapCenterY = g.originY + g.height * g.resolution / 2;
+            if (this.mapPoints.length === 0) {
+                this.viewX = mapCenterX;
+                this.viewY = mapCenterY;
+            }
+        },
 
         // ── 画布渲染 ─────────────────────────────────
         resizeCanvas() {
@@ -244,6 +315,9 @@ export default {
             ctx.fillStyle = '#f8fafc';
             ctx.fillRect(0, 0, W, H);
 
+            // 画栅格地图背景
+            this.drawGridMap(ctx, W, H);
+
             // 画网格
             this.drawGrid(ctx, W, H);
 
@@ -262,6 +336,26 @@ export default {
                 const [px, py] = this.worldToCanvas(this.chassis.x, this.chassis.y);
                 this.drawChassis(ctx, px, py, this.chassis.yaw);
             }
+        },
+        drawGridMap(ctx, W, H) {
+            const g = this.gridData;
+            if (!g || !this.gridCanvas) return;
+
+            const resPx = g.resolution * this.scale;
+            if (resPx < 0.5) return;
+
+            const mapWorldW = g.width * g.resolution;
+            const mapWorldH = g.height * g.resolution;
+
+            const [x0, y0] = this.worldToCanvas(g.originX, g.originY + mapWorldH);
+
+            const drawW = mapWorldW * this.scale;
+            const drawH = mapWorldH * this.scale;
+
+            if (x0 > W || y0 > H || x0 + drawW < 0 || y0 + drawH < 0) return;
+
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(this.gridCanvas, x0, y0, drawW, drawH);
         },
         drawGrid(ctx, W, H) {
             ctx.strokeStyle = '#e4ecf4';
@@ -353,16 +447,21 @@ export default {
     mounted() {
         mqttClient.addMapPointsCallback(this.onMapPoints);
         mqttClient.addMapInfoCallback(this.onMapInfo);
+        mqttClient.addMapGridCallback(this.onMapGrid);
         this.ctx = this.$refs.canvas.getContext('2d');
         this.resizeCanvas();
         window.addEventListener('resize', this.resizeCanvas);
         this.loadPoints();
         mqttClient.publishMapControl('read_maps');
+        setTimeout(() => {
+            mqttClient.publishMapControl('load_grid', {});
+        }, 1500);
         this.startRenderLoop();
     },
     beforeUnmount() {
         mqttClient.removeMapPointsCallback(this.onMapPoints);
         mqttClient.removeMapInfoCallback(this.onMapInfo);
+        mqttClient.removeMapGridCallback(this.onMapGrid);
         window.removeEventListener('resize', this.resizeCanvas);
         if (this.rafId) cancelAnimationFrame(this.rafId);
     }

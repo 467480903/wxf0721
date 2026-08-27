@@ -249,15 +249,27 @@ class RobotController:
         print(f"共 {len(self.waypoints)} 个导航点\n")
 
     def get_current_pose(self) -> dict:
-        """返回当前位姿字典 {position:[x,y,z], orientation:[qx,qy,qz,qw]}"""
-        odom = self.slam.get_odom_info()
-        pos  = odom.pose.pose.position
-        ori  = odom.pose.pose.orientation
+        """返回当前位姿字典 {position:[x,y,z], orientation:[qx,qy,qz,qw]}
+
+        注意：使用 get_curr_pose() 获取地图坐标系下的定位位姿。
+        get_odom_info() 返回的是里程计坐标系（原点=上电位置），与地图点位坐标系不重合。
+        """
+        pose = self.slam.get_curr_pose()
+        pos  = pose.position
+        ori  = pose.orientation
+        loc_state = -1
+        loc_confidence = 0.0
+        try:
+            odom = self.slam.get_odom_info()
+            loc_state = odom.loc_state
+            loc_confidence = odom.loc_confidence
+        except Exception:
+            pass
         return {
             "position":    [pos.x, pos.y, pos.z],
             "orientation": [ori.x, ori.y, ori.z, ori.w],
-            "loc_state":   odom.loc_state,
-            "loc_confidence": odom.loc_confidence,
+            "loc_state":   loc_state,
+            "loc_confidence": loc_confidence,
         }
 
     # ── 公开接口：导航 ────────────────────────────

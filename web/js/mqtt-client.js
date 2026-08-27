@@ -34,6 +34,7 @@ const JOINTS_DATA_TOPIC = '/humanoid/joints/data';
 const DONE_TOPIC = '/humanoid/commands/done';
 const MAP_POINTS_TOPIC = '/humanoid/map/points';
 const MAP_INFO_TOPIC = '/humanoid/map/info';
+const MAP_GRID_TOPIC = '/humanoid/map/grid';
 const PROGRAMS_STEP_TOPIC = '/humanoid/programs/step';
 const PROGRAMS_CODES_TOPIC = '/humanoid/programs/codes';
 const PROGRAMS_FILES_TOPIC = '/humanoid/programs/files';
@@ -70,6 +71,7 @@ class MqttClient {
         this.dataRespCallbacks = [];
         this.mapPointsCallbacks = [];
         this.mapInfoCallbacks = [];
+        this.mapGridCallbacks = [];
         this.modbusDataCallbacks = [];
     }
 
@@ -117,6 +119,8 @@ class MqttClient {
                     this.mapPointsCallbacks.forEach(cb => cb(data));
                 } else if (message.destinationName === MAP_INFO_TOPIC) {
                     this.mapInfoCallbacks.forEach(cb => cb(data));
+                } else if (message.destinationName === MAP_GRID_TOPIC) {
+                    this.mapGridCallbacks.forEach(cb => cb(data));
                 } else if (message.destinationName === MODBUS_DATA_TOPIC) {
                     this.modbusDataCallbacks.forEach(cb => cb(data));
                 }
@@ -142,6 +146,7 @@ class MqttClient {
                 this.client.subscribe(PROGRAMS_DELETE_RESULT_TOPIC, { qos: 0 });
                 this.client.subscribe(MAP_POINTS_TOPIC, { qos: 0 });
                 this.client.subscribe(MAP_INFO_TOPIC, { qos: 0 });
+                this.client.subscribe(MAP_GRID_TOPIC, { qos: 0 });
                 this.client.subscribe(MODBUS_DATA_TOPIC, { qos: 0 });
             },
             onFailure: (err) => {
@@ -323,6 +328,19 @@ class MqttClient {
 
     removeMapInfoCallback(callback) {
         this.mapInfoCallbacks = this.mapInfoCallbacks.filter(cb => cb !== callback);
+    }
+
+    /**
+     * 注册栅格地图回调
+     */
+    addMapGridCallback(callback) {
+        if (!this.mapGridCallbacks.includes(callback)) {
+            this.mapGridCallbacks.push(callback);
+        }
+    }
+
+    removeMapGridCallback(callback) {
+        this.mapGridCallbacks = this.mapGridCallbacks.filter(cb => cb !== callback);
     }
 
     /**

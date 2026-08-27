@@ -108,21 +108,34 @@ def read_end_effector_poses(robot):
 
 
 def read_chassis_pose(slam):
-    """读取底盘在地图中的位姿（X, Y, 旋转角）"""
+    """读取底盘在地图坐标系中的位姿（X, Y, 旋转角）
+
+    注意：get_odom_info() 返回的是里程计坐标系（原点=上电位置），
+    与地图点位坐标系不重合；必须使用 get_curr_pose() 获取地图坐标系下的定位位姿。
+    """
     try:
-        odom = slam.get_odom_info()
-        pos = odom.pose.pose.position
-        ori = odom.pose.pose.orientation
+        pose = slam.get_curr_pose()
+        pos = pose.position
+        ori = pose.orientation
         # 四元数转 yaw（绕 Z 轴旋转角）
         w, x, y, z = ori.w, ori.x, ori.y, ori.z
         yaw = math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
+        # loc_state / loc_confidence 仍从里程计信息中读取
+        loc_state = -1
+        loc_confidence = 0.0
+        try:
+            odom = slam.get_odom_info()
+            loc_state = odom.loc_state
+            loc_confidence = round(odom.loc_confidence, 4)
+        except Exception:
+            pass
         return {
             "x": round(pos.x, 6),
             "y": round(pos.y, 6),
             "z": round(pos.z, 6),
             "yaw": round(yaw, 6),
-            "loc_state": odom.loc_state,
-            "loc_confidence": round(odom.loc_confidence, 4),
+            "loc_state": loc_state,
+            "loc_confidence": loc_confidence,
         }
     except Exception as e:
         print(f"[状态] 读取底盘位姿失败: {e}")

@@ -23,23 +23,20 @@ _is_moving = False
 
 # ---------------- 运动心跳 ----------------
 def moving_heartbeat():
-    """运动心跳线程：机器人运动过程中持续向 PLC 写入 G2_moving=1
-    - _is_moving=True  → 每0.5s 写 G2_moving=1
-    - _is_moving=False → 写一次 G2_moving=0，然后等待"""
+    """运动心跳线程：机器人运动过程中持续向 PLC 写入 G2_eanbled=1
+    - _is_moving=True  → 每0.5s 写 G2_eanbled=1（运行中）
+    - _is_moving=False → 写一次 G2_eanbled=0（停止），然后等待"""
     global _comm_ok
     last_state = None
     while True:
         if _comm_ok:
             try:
                 if _is_moving:
-                    if last_state != True:
-                        G2_hb.setData("G2_moving", 1)
-                        last_state = True
-                    else:
-                        G2_hb.setData("G2_moving", 1)
+                    G2_hb.setData("G2_eanbled", 1)
+                    last_state = True
                 else:
                     if last_state != False:
-                        G2_hb.setData("G2_moving", 0)
+                        G2_hb.setData("G2_eanbled", 0)
                         last_state = False
             except Exception:
                 pass
@@ -52,7 +49,6 @@ def check_comm():
     global _comm_ok
     if not _comm_ok:
         try:
-            G2.setData("G2_moving", 0)
             G2.setData("G2_eanbled", 0)
         except Exception:
             pass
@@ -80,7 +76,6 @@ def comm_watchdog():
                     _comm_ok = False
                     print("[watchdog] MQTT通信中断（服务无响应），机器人立即停止！")
                     try:
-                        G2.setData("G2_moving", 0)
                         G2.setData("G2_eanbled", 0)
                     except Exception:
                         pass
@@ -96,7 +91,6 @@ def comm_watchdog():
                     global _is_moving
                     _is_moving = False
                     G2.TTS("未接收到总控信号，立即停止")
-                    G2.setData("G2_moving", 0)
                     G2.setData("G2_eanbled", 0)
                 except Exception:
                     pass
@@ -145,17 +139,17 @@ def handshake(req, done):
 
 # ---------------- 运动控制包装 ----------------
 def start_moving():
-    """标记机器人进入运动状态，心跳线程开始持续发送 G2_moving=1"""
+    """标记机器人进入运动状态，心跳线程开始持续发送 G2_eanbled=1"""
     global _is_moving
     _is_moving = True
-    G2.setData("G2_moving", 1)
+    G2.setData("G2_eanbled", 1)
 
 
 def stop_moving():
-    """标记机器人退出运动状态，心跳线程发送 G2_moving=0"""
+    """标记机器人退出运动状态，心跳线程发送 G2_eanbled=0"""
     global _is_moving
     _is_moving = False
-    G2.setData("G2_moving", 0)
+    G2.setData("G2_eanbled", 0)
 
 
 # 机器人就绪，通知 PLC

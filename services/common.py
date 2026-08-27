@@ -58,6 +58,7 @@ TOPIC_COMMANDS_DONE  = "/humanoid/commands/done"     # 服务端发布完成通�
 TOPIC_MAP_POINTS     = "/humanoid/map/points"        # 服务端发布地图点位
 TOPIC_MAP_CONTROL    = "/humanoid/map/control"       # 客户端控制地图点位
 TOPIC_MAP_INFO       = "/humanoid/map/info"          # 服务端发布地图列表/SLAM状态
+TOPIC_MAP_GRID       = "/humanoid/map/grid"          # 服务端发布OccupancyGrid栅格地图
 
 TOPIC_PROGRAMS_CONTROL = "/humanoid/programs/control"  # 客户端控制程序调试
 TOPIC_PROGRAMS_STEP    = "/humanoid/programs/step"     # 服务端发布执行步骤

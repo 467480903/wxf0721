@@ -49,6 +49,11 @@ import os
 import sys
 import json
 import time
+from concurrent.futures import ThreadPoolExecutor
+
+# 单线程命令执行器：长命令（go/wbc/tts 等）在此串行执行，
+# 避免阻塞 MQTT 消息循环，保证 data/read（信号读取）始终能被及时响应
+_cmd_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="cmd")
 
 # 确保能导入同目录下的组件模块
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -119,19 +124,24 @@ def on_message(client, userdata, msg):
 
     elif topic == common.TOPIC_JOINTS_CONTROL:
         # 关节运动命令（WBC/arms/head/joint 等）—— 需要 busy/idle 状态保护
+        # 提交到执行器线程，避免长时间动作阻塞 MQTT 循环
         cmd = payload.get("command")
         print(f"\n[命令] joints/control: {cmd}")
         if common.get_state() == "busy":
             print(f"[命令] 有命令正在执行，拒绝: {cmd}")
             return
         common.set_state("busy")
-        try:
-            joints.handle_control(payload)
-        except Exception as e:
-            print(f"[命令] 执行异常: {e}")
-        finally:
-            common.set_state("idle")
-            common.publish_done(cmd)
+
+        def _run_joints():
+            try:
+                joints.handle_control(payload)
+            except Exception as e:
+                print(f"[命令] 执行异常: {e}")
+            finally:
+                common.set_state("idle")
+                common.publish_done(cmd)
+
+        _cmd_executor.submit(_run_joints)
 
     elif topic == common.TOPIC_JOINTS_SAVE:
         # 数据持久化命令（save_joints/save_position/read/update/delete）
@@ -145,6 +155,8 @@ def on_message(client, userdata, msg):
 
     elif topic == common.TOPIC_COMMANDS_DATA:
         # 动作命令（tts/grab/go/go_rel/offset_move/cam_head）
+        # 提交到执行器线程串行执行（与 joints 命令共用队列，保持动作顺序），
+        # 避免长导航 go 阻塞 MQTT 循环导致 data/read 超时
         cmd = payload.get("command")
         ts = payload.get("ts")
         if isinstance(ts, (int, float)):
@@ -152,7 +164,7 @@ def on_message(client, userdata, msg):
                   f"(客户端时间戳 {ts}, 链路延迟 {int(time.time() * 1000) - ts}ms)")
         else:
             print(f"\n[命令] commands/data: {cmd}")
-        commands.handle_control(payload)
+        _cmd_executor.submit(commands.handle_control, payload)
 
     elif topic == common.TOPIC_MAP_CONTROL:
         # 地图点位命令（read_points/save_point）

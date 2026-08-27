@@ -31,6 +31,8 @@ map.py — 地图管理与SLAM建图组件
 
 import os
 import json
+import base64
+import struct
 
 import common
 import data as db
@@ -174,10 +176,57 @@ def publish_maps_list():
         print(f"  [地图] 读取地图列表失败: {e}")
 
 
+def publish_occupancy_grid(map_id=None):
+    """获取并发布当前地图的 OccupancyGrid 栅格数据到 /humanoid/map/grid
+
+    Parameters
+    ----------
+    map_id : int or None
+        地图 ID，为 None 时使用当前地图
+    """
+    try:
+        if map_id is not None:
+            map_info = common.gmap.get_map(int(map_id))
+        else:
+            curr_map = common.gmap.get_curr_map()
+            map_info = common.gmap.get_map(curr_map.id)
+
+        grid = map_info.grid_map
+
+        origin_pos = grid.origin.position
+        origin_ori = grid.origin.orientation
+
+        data_bytes = struct.pack(f'{len(grid.data)}b', *grid.data)
+        data_b64 = base64.b64encode(data_bytes).decode('ascii')
+
+        payload = {
+            "command": "occupancy_grid",
+            "data": {
+                "map_id": map_info.id,
+                "map_name": map_info.name,
+                "width": grid.width,
+                "height": grid.height,
+                "resolution": grid.resolution,
+                "origin": {
+                    "position": [origin_pos.x, origin_pos.y, origin_pos.z],
+                    "orientation": [origin_ori.x, origin_ori.y, origin_ori.z, origin_ori.w],
+                },
+                "data_b64": data_b64,
+            },
+        }
+        common.publish(common.TOPIC_MAP_GRID, payload, qos=0)
+        print(f"  [地图] 已发布栅格地图: {map_info.name} "
+              f"({grid.width}x{grid.height}, resolution={grid.resolution}, "
+              f"data={len(grid.data)} bytes)")
+    except Exception as e:
+        print(f"  [地图] 发布栅格地图失败: {e}")
+
+
 def handle_read_maps():
     """处理读取地图列表命令"""
     publish_maps_list()
     publish_slam_state()
+    publish_occupancy_grid()
 
 
 def handle_switch_map(map_id):
@@ -188,6 +237,7 @@ def handle_switch_map(map_id):
         print(f"  [地图] 已切换到地图: {mid}")
         common.nav.list_waypoints()
         publish_maps_list()
+        publish_occupancy_grid(mid)
     except Exception as e:
         print(f"  [地图] 切换地图失败: {e}")
 
@@ -219,6 +269,9 @@ def handle_control(payload):
         handle_save_map()
     elif cmd == "read_maps":
         handle_read_maps()
+    elif cmd == "load_grid":
+        grid_map_id = data.get("map_id") if isinstance(data, dict) else None
+        publish_occupancy_grid(grid_map_id)
     elif cmd == "switch_map":
         map_id = data.get("map_id") if isinstance(data, dict) else data
         if map_id:
