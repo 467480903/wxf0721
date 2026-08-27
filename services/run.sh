@@ -103,7 +103,8 @@ start_service() {
             echo "[run.sh] ❌ 文件不存在: $py_file"
             return 1
         fi
-        nohup python3 "$py_file" > "$log_file" 2>&1 &
+        # -u：关闭 stdout 块缓冲，保证日志实时写入文件
+        nohup python3 -u "$py_file" > "$log_file" 2>&1 &
         echo "$!" > "$pid_file"
     fi
 

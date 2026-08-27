@@ -33,6 +33,7 @@ Minth 机器人控制类库
 import json
 import os
 import threading
+import time
 
 import paho.mqtt.client as mqtt
 
@@ -134,7 +135,7 @@ class _RobotBase:
         关节命令发送到 /humanoid/joints/control，
         动作命令发送到 /humanoid/commands/data。
         """
-        payload = {"command": cmd}
+        payload = {"command": cmd, "ts": int(time.time() * 1000)}
         if data is not None:
             payload["data"] = data
 
@@ -476,7 +477,7 @@ class G2(_RobotBase):
         Returns:
             bool: True=已发送
         """
-        payload = {"command": "done"}
+        payload = {"command": "done", "ts": int(time.time() * 1000)}
         msg_str = json.dumps(payload, ensure_ascii=False)
         self._client.publish(DONE_TOPIC, msg_str, qos=2)
         print(f"[Minth] → over: 完成信号已发送到 {DONE_TOPIC}")

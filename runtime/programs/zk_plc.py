@@ -32,22 +32,31 @@ def check_comm():
 
 def comm_watchdog():
     """通信看门狗线程：持续读取 PLC 心跳信号
-    - readData 返回 None（超时）→ MQTT通信中断 → 立即终止
+    - readData 连续3次超时 → MQTT通信真中断 → 立即终止
+      （单次超时可能是服务端忙于执行动作，不误判）
     - plc_alive=0 → PLC未发总控信号 → TTS播报后立即终止
     - plc_alive=1 → 通信正常 → 继续"""
     global _comm_ok
+    timeout_count = 0          # 连续超时计数
+    TIMEOUT_LIMIT = 3          # 连续3次超时才判定通信中断
     while True:
         try:
             val = G2_wd.readData("plc_alive")
             if val is None:
-                # MQTT 通信中断：服务无响应
-                _comm_ok = False
-                print("[watchdog] MQTT通信中断（服务无响应），机器人立即停止！")
-                try:
-                    G2.setData("G2_eanbled", 0)
-                except Exception:
-                    pass
-                os._exit(1)
+                # 单次超时：可能服务端正忙（长动作执行），重试不误判
+                timeout_count += 1
+                print(f"[watchdog] readData 超时 {timeout_count}/{TIMEOUT_LIMIT}")
+                if timeout_count >= TIMEOUT_LIMIT:
+                    _comm_ok = False
+                    print("[watchdog] MQTT通信中断（服务无响应），机器人立即停止！")
+                    try:
+                        G2.setData("G2_eanbled", 0)
+                    except Exception:
+                        pass
+                    os._exit(1)
+                time.sleep(0.3)
+                continue
+            timeout_count = 0  # 读到值，重置计数
             if val == 0:
                 # PLC 未发总控信号
                 _comm_ok = False
@@ -75,20 +84,14 @@ def wait_signal(name, value=1):
     """等待 PLC 信号变为指定值
     - PLC 发送信号（value 匹配）→ 正常执行
     - PLC 未发送信号 → 等待，不动作
-    - PLC 通信中断（readData 返回 None）→ 立即停止"""
-    global _comm_ok
+    - readData 偶发超时 → 重试（由看门狗负责判定真中断）"""
     while True:
         check_comm()
         val = G2.readData(name)
         if val is None:
-            # 通信中断：收不到 PLC 信号 → 立即停止
-            _comm_ok = False
-            try:
-                G2.setData("G2_eanbled", 0)
-            except Exception:
-                pass
-            print(f"[comm] 读取 {name} 失败，PLC通信中断，机器人停止")
-            os._exit(1)
+            # 偶发超时：服务端可能忙于执行动作，稍后重试
+            time.sleep(0.2)
+            continue
         if val == value:
             return
         time.sleep(0.2)

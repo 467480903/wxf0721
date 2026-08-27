@@ -48,6 +48,7 @@ MQTT 主题结构（遵循 SKILL.md 规则）：
 import os
 import sys
 import json
+import time
 
 # 确保能导入同目录下的组件模块
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -145,7 +146,12 @@ def on_message(client, userdata, msg):
     elif topic == common.TOPIC_COMMANDS_DATA:
         # 动作命令（tts/grab/go/go_rel/offset_move/cam_head）
         cmd = payload.get("command")
-        print(f"\n[命令] commands/data: {cmd}")
+        ts = payload.get("ts")
+        if isinstance(ts, (int, float)):
+            print(f"\n[命令] commands/data: {cmd} "
+                  f"(客户端时间戳 {ts}, 链路延迟 {int(time.time() * 1000) - ts}ms)")
+        else:
+            print(f"\n[命令] commands/data: {cmd}")
         commands.handle_control(payload)
 
     elif topic == common.TOPIC_MAP_CONTROL:

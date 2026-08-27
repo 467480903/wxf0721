@@ -209,4 +209,6 @@ def publish(topic, payload, qos=0):
 
 def publish_done(command=""):
     """命令执行完成后向 /humanoid/commands/done 发布完成通知"""
-    publish(TOPIC_COMMANDS_DONE, {"command": "done", "cmd": command}, qos=2)
+    publish(TOPIC_COMMANDS_DONE,
+            {"command": "done", "cmd": command, "ts": int(time.time() * 1000)},
+            qos=2)

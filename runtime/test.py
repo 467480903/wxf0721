@@ -1,9 +1,24 @@
 import pdb
 from minth import Minth
-
+import time
 G2 = Minth.G2()
 # G2.GO(9)
 # G2.YOLO("wxf.pt")
 # G2.CHASSIS_CORRECT(px_to_meter=-130/50/1000)
 # G2.WAIST_CORRECT()
-G2.YOLO("wxf.pt")
+# G2.YOLO("wxf.pt")
+G2.TTS("aaaaaa")
+G2.GRIPPER({"left":-0.1})
+time.sleep(0.5)
+G2.GRIPPER({"left":-0.5})
+time.sleep(0.5)
+G2.GRIPPER({"left":-0.1})
+G2.OFFSET({"lz":-100})
+G2.WBC("SQ3")
+G2.WBC("SQ4")
+print(1)
+# G2.OFFSET({"lz":10})
+time.sleep(5)
+G2.GRIPPER({"left":-0.5})
+G2.GRIPPER({"right":-0.5})
+G2.TTS("aaaaaa")

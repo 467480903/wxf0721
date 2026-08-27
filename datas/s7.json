@@ -3,7 +3,7 @@
     "name": "s1200",
     "ip": "10.2.250.51",
     "read": [
-      {"name": "plc_alive", "addr": "DB8.DBX2.0", "type": "bool"},
+      {"name": "plc_alive", "addr": "DB8.DBX2.3", "type": "bool"},
       {"name": "pick_right", "addr": "DB8.DBX2.1", "type": "bool"},
       {"name": "place_middle", "addr": "DB8.DBX2.2", "type": "bool"}
     ],
