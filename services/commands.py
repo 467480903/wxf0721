@@ -84,12 +84,34 @@ def handle_offset_move(data, msg=None):
 #  夹爪控制
 # ═══════════════════════════════════════════════════════════
 
+# ── 夹爪到位判断参数（handle_grab 中执行）────────────────
+# 下发后每 0.1s 读一次爪子位置，未到位则重发命令
+GRIPPER_CHECK_TOL     = 0.05   # 到位容差
+GRIPPER_CHECK_TIMEOUT = 6.0    # 到位判断总超时（秒）
+GRIPPER_CHECK_PERIOD  = 0.1    # 判断周期（秒）
+
+
+def _read_gripper_pos(side):
+    """读取单侧夹爪当前实际位置，失败返回 None"""
+    try:
+        end_state = common.robot.get_end_state()
+        states = (end_state.get(f"{side}_end_state") or {}).get("end_states") or []
+        if not states:
+            return None
+        return float(states[0].get("position", 0.0))
+    except Exception:
+        return None
+
+
 def handle_grab(data, msg=None):
     """控制夹爪开合
 
     data 格式: {"left": -0.7, "right": -0.0}
     只操作传入的手，未传入的不操作
     负值=张开，正值=闭合
+
+    下发后执行到位判断：每 0.1 秒读取爪子实际位置，
+    未到位则重发命令，直到到位或超时。
     """
     has_left = "left" in data
     has_right = "right" in data
@@ -101,13 +123,46 @@ def handle_grab(data, msg=None):
     if has_right:
         print(f"  右夹爪 position={right_pos}")
 
-    # 右夹爪
+    # 首次下发
     if has_right:
         _control_gripper("right", right_pos)
-
-    # 左夹爪
     if has_left:
         _control_gripper("left", left_pos)
+
+    # 到位判断目标列表
+    targets = []
+    if has_right:
+        targets.append(("right", right_pos))
+    if has_left:
+        targets.append(("left", left_pos))
+    if not targets:
+        return
+
+    # 到位判断：每 0.1s 读位置，未到位则重发命令
+    deadline = time.time() + GRIPPER_CHECK_TIMEOUT
+    while targets and time.time() < deadline:
+        time.sleep(GRIPPER_CHECK_PERIOD)
+
+        # 读取位置，区分到位/未到位
+        actual_map = {}
+        pending = []
+        for side, pos in targets:
+            actual = _read_gripper_pos(side)
+            actual_map[side] = actual
+            if actual is not None and abs(actual - pos) <= GRIPPER_CHECK_TOL:
+                print(f"  {side} 夹爪到位 (目标 {pos}, 实际 {actual:.3f})")
+            else:
+                pending.append((side, pos))
+
+        # 未到位的重发命令
+        for side, pos in pending:
+            print(f"  {side} 夹爪未到位 (实际 {actual_map[side]})，重发命令")
+            _control_gripper(side, pos)
+        targets = pending
+
+    if targets:
+        for side, pos in targets:
+            print(f"  {side} 夹爪超时未到位: 目标 {pos}, 实际 {actual_map.get(side)}")
 
 
 def _control_gripper(side, position):
