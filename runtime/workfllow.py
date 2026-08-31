@@ -2,15 +2,13 @@ from minth import Minth
 import time
 import cv2
 from capture import capture_head_color
-from tape_detect import analyze_top_workpiece
-from positioning import positioning
-import tag_correct
+from aruco import *
 
-MAP_POS_Home = 1
+MAP_POS_Home = 2
 MAP_POS_GetCar = 1
-MAP_POS_GetWorkpiece = 1
-MAP_POS_PutBig = 1
-MAP_POS_PutSmall = 1
+MAP_POS_GetWorkpiece = 0
+MAP_POS_PutBig = 9
+MAP_POS_PutSmall = 9
 
 
 G2 = Minth.G2()
@@ -89,7 +87,7 @@ def car_move():
     G2.WBC("Wdown2")
     G2.GO(MAP_POS_GetCar)
     G2.GRIPPER({"left": -0.7, "right": -0.7})
-    positioning("/data/wxf/wxf0721/runtime/references-tag/reference_id1_id2.json", G2=G2,max_rounds=4)
+    positioning("/data/wxf/wxf0721/runtime/references-tag/reference_id1_id2.json", G2=G2)#max_rounds:4
     G2.ARMS("car3")
     G2.ARMS("car3.1")
     G2.ARMS("car5")
@@ -138,7 +136,7 @@ def get_work(carmove = False):
         G2.REL({"x": 0.12}) 
         G2.GRIPPER({"left": -0.7, "right": -0.4})
         # 在这里纠偏 (AprilTag 36h11, 39mm, 右手腕相机)
-        tag_correct.tag_correct(f"/data/wxf/wxf0721/runtime/tag_ref/{jj}", G2)
+        tag_correct(f"/data/wxf/wxf0721/runtime/tag_ref/{jj}", G2)
         G2.OFFSET({"rz": 20})
         G2.GRIPPER({"left": -0, "right": -0})
         # time.sleep(0.5)
@@ -168,7 +166,7 @@ def release_car():
     G2.WBC("Wdown2")
     G2.GO(MAP_POS_GetWorkpiece)
     G2.GRIPPER({"left": -0.7, "right": -0.7})
-    positioning("/data/wxf/wxf0721/runtime/references-tag/reference_id1_id2.json", G2=G2,max_rounds=4)
+    positioning("/data/wxf/wxf0721/runtime/references-tag/reference_id1_id2.json", G2=G2)#max_rounds:4
     G2.ARMS("car3")
     G2.ARMS("car3.1")
     G2.ARMS("car5")
@@ -184,9 +182,9 @@ def release_car():
 
 def main():
     carmove = False
+    G2.TTS("大家好，我将进行焊装工位的上件和更换台车演示，我将把台车拉到夹具旁边。")
     G2.GO(MAP_POS_Home)
-    # G2.TTS("大家好，我将进行焊装工位的上件和更换台车演示，我将把台车拉到夹具旁边。")
-    # time.sleep(5)
+    G2.WBC("Wdown2")
     # carmove = car_move()
     get_work(carmove)
     release_car()

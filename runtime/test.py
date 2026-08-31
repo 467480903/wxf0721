@@ -15,13 +15,13 @@ import json
 import shutil
 import argparse
 from datetime import datetime
+from aruco import save_reference_pose
 
 # 加父目录到 sys.path, 复用 runtime/ 下的 minth.py 和 capture.py
 _PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _PARENT)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from AprilTag_pose import save_reference_pose
 from minth import Minth
 from capture import capture_head_color
 
