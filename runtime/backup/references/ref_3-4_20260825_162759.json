@@ -1,0 +1,30 @@
+{
+  "name": "3-4",
+  "depth_method": "pnp",
+  "rvec": [
+    1.5726665761411973,
+    -1.4663067525213087,
+    0.9166404439826717
+  ],
+  "tvec": [
+    222.45429763579813,
+    187.72746508195445,
+    708.8921202004623
+  ],
+  "left_marker_id": 3,
+  "right_marker_id": 4,
+  "target_ids": [
+    3,
+    4
+  ],
+  "left_orientation": "normal",
+  "right_orientation": "normal",
+  "reprojection_error_px": 0.8113152108974567,
+  "marker_size_mm": 97.0,
+  "marker_spacing_mm": 566.0,
+  "dict": "DICT_APRILTAG_36h11",
+  "mid_x_px_ref": 419.4192886352539,
+  "mid_y_px_ref": 285.2690010070801,
+  "tilt_deg_ref": 2.5489699676567903,
+  "sep_px_ref": 253.16813900941233
+}

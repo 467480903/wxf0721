@@ -70,7 +70,7 @@ def read_all_map_points():
         print(f"  [地图] 读取地图引导点失败: {e}")
 
     # 2. 从数据库读取本地保存的点位
-    for pt in db.get_map_points(source="local"):
+    for pt in db.get_map_points():
         points.append(pt)
 
     return points
@@ -278,3 +278,87 @@ def handle_control(payload):
             handle_switch_map(map_id)
     else:
         print(f"[地图] 未知命令: {cmd}")
+
+
+# ═══════════════════════════════════════════════════════════
+#  DB 地图点位管理（只操作 robot_data.db，不读写 G2 地图）
+# ═══════════════════════════════════════════════════════════
+
+def _publish_db_points():
+    """读取 map_points 全表并发布到 /humanoid/map/db_data"""
+    points = db.get_map_points()
+    resp = {"command": "db_points", "data": points}
+    common.publish(common.TOPIC_MAP_DB_DATA, resp, qos=0)
+    print(f"  [地图DB] 已发布 {len(points)} 条点位到 {common.TOPIC_MAP_DB_DATA}")
+    return points
+
+
+def _find_db_point(name, source):
+    """按 name(+source) 在 map_points 表中查一条点位，找不到返回 None"""
+    for pt in db.get_map_points():
+        if pt["name"] == name and (source is None or pt["source"] == source):
+            return pt
+    return None
+
+
+def handle_db_control(payload):
+    """处理 /humanoid/map/db_control 命令（纯数据库操作，不触碰 G2 地图）
+
+    payload : dict
+        {"command": "read"}
+        {"command": "update", "data": {"name": "A", "source": "local",
+         "position": [x,y,z], "orientation": [x,y,z,w]}}
+        {"command": "delete", "data": {"name": "A", "source": "local"}}
+        {"command": "goto",   "data": {"name": "A", "source": "local"}}
+    """
+    cmd = payload.get("command")
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+    name = data.get("name")
+    source = data.get("source")
+
+    if cmd == "read":
+        _publish_db_points()
+
+    elif cmd == "update":
+        position = data.get("position")
+        orientation = data.get("orientation")
+        if not name or not isinstance(position, (list, tuple)) or len(position) < 2:
+            print(f"  [地图DB] update 参数无效: name={name}, position={position}")
+            return
+        if not isinstance(orientation, (list, tuple)) or len(orientation) < 4:
+            orientation = [0, 0, 0, 1]
+        db.save_map_point(name, list(position), list(orientation),
+                          source=source or "local")
+        print(f"  [地图DB] 已更新点位: {name} ({source or 'local'})")
+        _publish_db_points()
+
+    elif cmd == "delete":
+        if not name:
+            print(f"  [地图DB] delete 缺少 name")
+            return
+        db.delete_map_point(name)
+        print(f"  [地图DB] 已删除点位: {name} ({source or 'local'})")
+        _publish_db_points()
+
+    elif cmd == "goto":
+        # 「到位」：按 DB 坐标直接导航（只运动，不修改 G2 地图数据）
+        if not name:
+            print(f"  [地图DB] goto 缺少 name")
+            return
+        pt = _find_db_point(name, source)
+        if pt is None:
+            print(f"  [地图DB] 找不到点位: {name}")
+            common.publish(common.TOPIC_MAP_DB_DATA,
+                           {"command": "goto_result",
+                            "data": {"name": name, "success": False,
+                                     "message": "点位不存在"}}, qos=0)
+            return
+        print(f"  [地图DB] 到位: {name} → {pt['position']}")
+        ok = common.nav.go_by_pose(pt["position"], pt["orientation"], name=name)
+        common.publish(common.TOPIC_MAP_DB_DATA,
+                       {"command": "goto_result",
+                        "data": {"name": name, "success": bool(ok),
+                                 "message": "已到达" if ok else "导航失败"}}, qos=0)
+
+    else:
+        print(f"[地图DB] 未知命令: {cmd}")

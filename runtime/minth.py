@@ -16,14 +16,13 @@ Minth 机器人控制类库
     robot.REL({"x": 0.3})       # 底盘前进 0.3 米
     robot.OFFSET({"lx": 20})    # 左末端相对移动 20mm
     robot.GRIPPER({"left": 0.5, "right": 0.5})
-    robot.YOLO("7.14.pt")       # YOLO 目标检测
-    robot.YOLO("wxf.pt")        # 使用 wxf.pt 模型检测
+    robot.YOLO("7.14.pt")               # YOLO 目标检测（使用服务端默认 IP）
+    robot.YOLO("wxf.pt")                # 使用 wxf.pt 模型检测
+    robot.YOLO("wxf.pt", "10.2.236.7")  # 指定自定义 YOLO 服务端 IP
     robot.CHASSIS_CORRECT()     # 根据 detect.json 纠正底盘水平偏移
     robot.JOINT("idx11_head_joint1", offset=0.01)   # 单关节增量微调
     robot.JOINT("idx11_head_joint1", value=0.0)     # 单关节运动到指定角度
     robot.WAIST_CORRECT()       # 根据 detect.json 的 angle_rad 纠正腰部旋转
-    val = robot.readData("m1")  # 读取 synch 变量 m1 的值
-    robot.setData("m1_", 1)     # 设置 synch write 变量 m1_ 的值
     robot.close()
 
     # X2 型号（预留）
@@ -33,7 +32,6 @@ Minth 机器人控制类库
 import json
 import os
 import threading
-import time
 
 import paho.mqtt.client as mqtt
 
@@ -49,10 +47,6 @@ COMMANDS_TOPIC = "/humanoid/commands/data"
 DONE_TOPIC = "/humanoid/commands/done"
 # 相机控制主题
 CAMERA_TOPIC = "/humanoid/camera/control"
-# synch 数据同步主题（readData / setData）
-DATA_READ_TOPIC = "/humanoid/data/read"
-DATA_WRITE_TOPIC = "/humanoid/data/write"
-DATA_RESPONSE_TOPIC = "/humanoid/data/response"
 
 # 默认超时时间（秒）
 DEFAULT_TIMEOUT = 15
@@ -78,10 +72,6 @@ class _RobotBase:
         self.timeout = timeout
         self._done_event = threading.Event()
         self._connected = False
-        # synch 数据读取响应同步
-        self._data_value = None
-        self._data_name = None
-        self._data_ready = threading.Event()
         cid = client_id or f"minth_{self.__class__.__name__}_{id(self)}"
         self._client = mqtt.Client(
             mqtt.CallbackAPIVersion.VERSION2,
@@ -103,7 +93,6 @@ class _RobotBase:
     def _on_connect(self, client, userdata, flags, rc, properties=None):
         if rc == 0:
             client.subscribe(DONE_TOPIC, qos=2)
-            client.subscribe(DATA_RESPONSE_TOPIC, qos=0)
             self._connected = True
         else:
             raise ConnectionError(f"MQTT 连接失败，返回码: {rc}")
@@ -111,19 +100,6 @@ class _RobotBase:
     def _on_message(self, client, userdata, msg):
         if msg.topic == DONE_TOPIC:
             self._done_event.set()
-        elif msg.topic == DATA_RESPONSE_TOPIC:
-            self._on_data_response(msg)
-
-    def _on_data_response(self, msg):
-        """处理 synch 数据读取/写入响应"""
-        try:
-            payload = json.loads(msg.payload.decode("utf-8"))
-        except Exception:
-            return
-        name = payload.get("name")
-        if name == self._data_name:
-            self._data_value = payload.get("value")
-            self._data_ready.set()
 
     # ── 核心：发送命令并等待完成 ────────────────────────────
     # 关节命令集合（发送到 /humanoid/joints/control）
@@ -135,7 +111,7 @@ class _RobotBase:
         关节命令发送到 /humanoid/joints/control，
         动作命令发送到 /humanoid/commands/data。
         """
-        payload = {"command": cmd, "ts": int(time.time() * 1000)}
+        payload = {"command": cmd}
         if data is not None:
             payload["data"] = data
 
@@ -172,64 +148,6 @@ class G2(_RobotBase):
     收到后返回 True；15 秒超时返回 False。
     """
 
-    # ── synch 数据同步（readData / setData）─────────────────
-
-    def readData(self, name):
-        """读取 synch 变量的值
-
-        通过 MQTT 向 /humanoid/data/read 发送请求，
-        等待 /humanoid/data/response 返回结果。
-
-        Args:
-            name: synch 变量名（如 "m1"、"w1"）
-        Returns:
-            变量值或 None（超时 / 未找到）
-        """
-        self._data_name = name
-        self._data_value = None
-        self._data_ready.clear()
-
-        payload = {"command": "read", "name": name}
-        self._client.publish(
-            DATA_READ_TOPIC, json.dumps(payload, ensure_ascii=False), qos=0
-        )
-        print(f"[Minth] → readData({name})")
-
-        if self._data_ready.wait(timeout=self.timeout):
-            print(f"[Minth] ✓ readData({name}) = {self._data_value}")
-            return self._data_value
-        print(f"[Minth] ✗ readData({name}) 超时")
-        return None
-
-    def setData(self, name, value):
-        """设置 synch write 变量的值
-
-        通过 MQTT 向 /humanoid/data/write 发送请求，
-        服务端收到后更新 synch 中对应 write 条目的 value 并标记 state=1，
-        随后 modbus/s7 轮询线程会将值写入设备。
-
-        Args:
-            name:  synch write 变量名（如 "m1_"、"w1_"）
-            value: 要写入的值
-        Returns:
-            bool: True=服务端已接收，False=超时
-        """
-        self._data_name = name
-        self._data_value = None
-        self._data_ready.clear()
-
-        payload = {"command": "write", "name": name, "value": value}
-        self._client.publish(
-            DATA_WRITE_TOPIC, json.dumps(payload, ensure_ascii=False), qos=0
-        )
-        print(f"[Minth] → setData({name}, {value})")
-
-        if self._data_ready.wait(timeout=self.timeout):
-            print(f"[Minth] ✓ setData({name}, {value}) 已接收")
-            return True
-        print(f"[Minth] ✗ setData({name}, {value}) 超时")
-        return False
-
     def GO(self, num):
         """导航到指定地图点位
         Args:
@@ -259,36 +177,43 @@ class G2(_RobotBase):
         """
         return self._send_and_wait("arms", name)
 
-    def LEFT(self, data):
-        """左臂关节运动（内联关节角）
+    def LEFT(self, name):
+        """左臂关节运动（仅左臂）
         Args:
-            data: dict 或 str。dict 为内联关节角（弧度），
-                  str 为动作名称（对应 datas/joints/left/{name}.json）
-                  如 {"idx21_arm_l_joint1": 1.92, "idx22_arm_l_joint2": -1.38, ...}
+            name: 动作名称字符串，对应 datas/joints/left/{name}.json
+                  例如 "A_PLACE_LOOK"
         Returns:
             bool
         """
-        return self._send_and_wait("left", data)
+        return self._send_and_wait("left", name)
 
-    def PNC_FORWARD(self, distance, speed=0.1):
-        """PNC 前进/后退（带速度控制）
+    def RIGHT(self, name):
+        """右臂关节运动（仅右臂）
         Args:
-            distance: 距离（米），正=前进，负=后退
-            speed:    速度（m/s），默认 0.1
+            name: 动作名称字符串，对应 datas/joints/right/{name}.json
+                  例如 "A_PLACE_LOOK"
         Returns:
             bool
         """
-        return self._send_and_wait("pnc_forward", {"distance": distance, "speed": speed})
+        return self._send_and_wait("right", name)
 
-    def PNC_ROTATE(self, angle_deg, speed=0.1):
-        """PNC 原地旋转（带速度控制）
+    def HEAD(self, name):
+        """头部关节运动
         Args:
-            angle_deg: 角度（度），正=左转，负=右转
-            speed:     角速度（rad/s），默认 0.1
+            name: 动作名称字符串，对应 datas/joints/head/{name}.json
         Returns:
             bool
         """
-        return self._send_and_wait("pnc_rotate", {"angle": angle_deg, "speed": speed})
+        return self._send_and_wait("head", name)
+
+    def WAIST(self, name):
+        """腰部关节运动
+        Args:
+            name: 动作名称字符串，对应 datas/joints/waist/{name}.json
+        Returns:
+            bool
+        """
+        return self._send_and_wait("waist", name)
 
     def OFFSET(self, data):
         """末端执行器相对移动
@@ -331,24 +256,28 @@ class G2(_RobotBase):
         """
         return self._send_and_wait("grab", data)
 
-    def YOLO(self, model="wxf.pt"):
+    def YOLO(self, model="wxf.pt", ip=None):
         """YOLO 目标检测
 
         拍摄头部彩色+深度图，发送给 YOLO 服务进行检测，等待完成后返回。
 
-        通过 MQTT 向 /humanoid/camera/control 发送 {"command":"detect","yolo":"<model>"}，
+        通过 MQTT 向 /humanoid/camera/control 发送 {"command":"detect","yolo":"<model>","yolo_ip":"<ip>"}，
         camera.py 执行完毕后会向 /humanoid/commands/done 发送 {"command":"done"}。
 
         Args:
             model: YOLO 模型文件名，如 "wxf.pt"、"7.14.pt"
+            ip:   可选，自定义 YOLO 检测服务端 IP 地址；
+                  不传或为 None 时使用 camera.py 中的默认配置 YOLO_TCP_HOST
         Returns:
             bool: True=检测完成，False=超时
         """
         payload = {"command": "detect", "yolo": model}
+        if ip:
+            payload["yolo_ip"] = ip
         self._done_event.clear()
         msg_str = json.dumps(payload, ensure_ascii=False)
         self._client.publish(CAMERA_TOPIC, msg_str, qos=2)
-        print(f"[Minth] → YOLO: model={model}")
+        print(f"[Minth] → YOLO: model={model}, ip={ip or 'default'}")
 
         # YOLO 检测耗时较长，使用较长超时
         done = self._done_event.wait(timeout=120)
@@ -467,21 +396,6 @@ class G2(_RobotBase):
 
         print(f"[Minth] WAIST_CORRECT: {joint_name} angle_rad={angle:.4f}")
         return self.JOINT(joint_name, offset=angle)
-
-    def done(self):
-        """发送完成信号
-
-        往 DONE_TOPIC (/humanoid/commands/done) 发送 {"command":"done"}，
-        通知订阅方（如其他脚本/服务）当前任务已完成。
-
-        Returns:
-            bool: True=已发送
-        """
-        payload = {"command": "done", "ts": int(time.time() * 1000)}
-        msg_str = json.dumps(payload, ensure_ascii=False)
-        self._client.publish(DONE_TOPIC, msg_str, qos=2)
-        print(f"[Minth] → over: 完成信号已发送到 {DONE_TOPIC}")
-        return True
 
 
 class X2(_RobotBase):

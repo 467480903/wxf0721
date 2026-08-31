@@ -1,0 +1,70 @@
+{
+  "model_path": "shelf.pt",
+  "image_path": "/home/wxf/yolo/detect_output/20260819_165356/rgb.png",
+  "depth_raw_path": "/home/wxf/yolo/detect_output/20260819_165356/depth.raw",
+  "depth_offset_px": 12,
+  "depth_shape": [
+    400,
+    640
+  ],
+  "image_size": {
+    "height": 400,
+    "width": 640
+  },
+  "detection": {
+    "point1": {
+      "label": "a",
+      "center": [
+        393.03,
+        176.79
+      ]
+    },
+    "point2": {
+      "label": "a",
+      "center": [
+        234.87,
+        178.75
+      ]
+    }
+  },
+  "offset": {
+    "line_center": [
+      313.95,
+      177.77
+    ],
+    "image_center_x": 320.0,
+    "horizontal_offset_px": -6.05,
+    "direction": "偏左"
+  },
+  "slope": {
+    "slope": -0.0124,
+    "angle_rad": 3.1292,
+    "angle_deg": 179.3
+  },
+  "depth": {
+    "point1_center_mm": 891.0,
+    "point1_left_offset_mm": 909.3846153846154,
+    "point1_left_sample_pixel": [
+      393,
+      188
+    ],
+    "point2_center_mm": 879.0,
+    "point2_right_offset_mm": 883.8461538461538,
+    "point2_right_sample_pixel": [
+      234,
+      190
+    ],
+    "center_mm": 4004.8888888888887,
+    "center_sample_pixel": [
+      313,
+      177
+    ]
+  },
+  "output_files": [
+    "result.jpg",
+    "yolo_depth_rgb.jpg",
+    "yolo_depth_depth.jpg",
+    "yolo_depth_rgb_with_depth.jpg",
+    "yolo_depth_depth_marked.jpg"
+  ]
+}

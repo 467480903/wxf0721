@@ -9,7 +9,9 @@ import TeachCoords     from './teach-coords.js';
 import ProgramView     from './program-view.js';
 import MapView         from './map-view.js';
 import CameraView      from './camera-view.js';
-import DataJointsCoords from './data-joints-coords.js';
+import DataJoints       from './data-joints.js';
+import DataCoords       from './data-coords.js';
+import DataMapPoints    from './data-map-points.js';
 import SynchroView      from './synchro.js';
 import YoloInference   from './yolo-inference.js';
 import ChassisControl  from './chassis-control.js';
@@ -36,8 +38,10 @@ const App = {
                 },
                 {
                     id: 'data', label: '数据', icon: '📊', children: [
-                        { id: 'data_jc',      label: '关节/坐标' },
-                        { id: 'data_modbus',  label: '同步' },
+                        { id: 'data_joints',     label: '关节' },
+                        { id: 'data_coords',     label: '坐标' },
+                        { id: 'data_map_points', label: '地图点位' },
+                        { id: 'data_modbus',     label: '同步' },
                     ]
                 },
                 { id: 'program', label: '程序', icon: '📋' },
@@ -58,7 +62,7 @@ const App = {
             robotStatus: null   // 共享的机器人状态
         };
     },
-    components: { TeachJoints, TeachCoords, ProgramView, MapView, CameraView, DataJointsCoords, SynchroView, YoloInference, ChassisControl },
+    components: { TeachJoints, TeachCoords, ProgramView, MapView, CameraView, DataJoints, DataCoords, DataMapPoints, SynchroView, YoloInference, ChassisControl },
     provide() {
         return {
             getUrdfViewer: () => this.urdfViewer,
@@ -80,7 +84,9 @@ const App = {
                 return `程序 - ${name}`;
             }
             const titles = {
-                'data_jc': '关节 / 坐标数据',
+                'data_joints': '关节角度轴数据',
+                'data_coords': '坐标点位数据',
+                'data_map_points': '地图点位（数据库）',
                 'data_modbus': 'Modbus 数据',
                 'map_slam': '扫图建图',
                 'map_points': '地图点管理',
@@ -163,7 +169,7 @@ const App = {
             </div>
         </div>
 
-        <main id="content" :class="{ 'content-hidden': !currentMenu, 'content-fullscreen': currentMenu === 'map_chassis' || currentMenu === 'cam_capture' || currentMenu === 'cam_yolo' || currentMenu === 'data_jc' || currentMenu === 'data_modbus' || currentMenu === 'program' || currentMenu === 'teach_joints' || currentMenu === 'teach_coords' }">
+        <main id="content" :class="{ 'content-hidden': !currentMenu, 'content-fullscreen': currentMenu === 'map_chassis' || currentMenu === 'cam_capture' || currentMenu === 'cam_yolo' || currentMenu === 'data_joints' || currentMenu === 'data_coords' || currentMenu === 'data_map_points' || currentMenu === 'data_modbus' || currentMenu === 'program' || currentMenu === 'teach_joints' || currentMenu === 'teach_coords' }">
             <teach-joints     v-if="currentMenu === 'teach_joints'"></teach-joints>
             <teach-coords     v-if="currentMenu === 'teach_coords'"></teach-coords>
             <program-view     ref="programView" v-if="currentMenu === 'program'"></program-view>
@@ -178,8 +184,14 @@ const App = {
             <!-- 相机 > YOLO计算 -->
             <yolo-inference   v-if="currentMenu === 'cam_yolo'"></yolo-inference>
 
-            <!-- 数据 > 关节/坐标 -->
-            <data-joints-coords v-if="currentMenu === 'data_jc'"></data-joints-coords>
+            <!-- 数据 > 关节 -->
+            <data-joints      v-if="currentMenu === 'data_joints'"></data-joints>
+
+            <!-- 数据 > 坐标 -->
+            <data-coords      v-if="currentMenu === 'data_coords'"></data-coords>
+
+            <!-- 数据 > 地图点位（只操作 robot_data.db） -->
+            <data-map-points  v-if="currentMenu === 'data_map_points'"></data-map-points>
 
             <!-- 数据 > 同步 -->
             <synchro-view      v-if="currentMenu === 'data_modbus'"></synchro-view>

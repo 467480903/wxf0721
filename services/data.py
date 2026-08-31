@@ -209,32 +209,34 @@ def _sync_to_file():
 #  关节数据 CRUD
 # ═══════════════════════════════════════════════════════════
 
-def get_joints(jtype=None, name=None):
-    """查询关节数据"""
+def get_joints():
+    """查询所有关节数据"""
     with _db_lock:
         cur = _mem_conn.cursor()
-        if jtype and name:
-            cur.execute("SELECT type, name, value FROM joints WHERE type=? AND name=?", (jtype, name))
-        elif jtype:
-            cur.execute("SELECT type, name, value FROM joints WHERE type=? ORDER BY name", (jtype,))
-        else:
-            cur.execute("SELECT type, name, value FROM joints ORDER BY type, name")
+        cur.execute("SELECT type, name, value FROM joints ORDER BY type, name")
         rows = cur.fetchall()
     return [{"type": r[0], "name": r[1], "value": json.loads(r[2])} for r in rows]
 
 
 def save_joints(jtype, name, value):
-    """保存或更新关节数据"""
+    """保存或更新关节数据（先查再插入/更新，不用 ON CONFLICT）"""
     with _db_lock:
         cur = _mem_conn.cursor()
-        cur.execute(
-            "INSERT INTO joints (type, name, value) VALUES (?, ?, ?) "
-            "ON CONFLICT(type, name) DO UPDATE SET value=excluded.value",
-            (jtype, name, json.dumps(value, ensure_ascii=False))
-        )
+        cur.execute("SELECT 1 FROM joints WHERE name=?", (name,))
+        exists = cur.fetchone() is not None
+        if exists:
+            cur.execute(
+                "UPDATE joints SET value=? WHERE name=?",
+                (json.dumps(value, ensure_ascii=False), name)
+            )
+        else:
+            cur.execute(
+                "INSERT INTO joints (type, name, value) VALUES (?, ?, ?)",
+                (jtype, name, json.dumps(value, ensure_ascii=False))
+            )
         _mem_conn.commit()
         _sync_to_file()
-    print(f"  [DB] 保存关节: {jtype}/{name}")
+    print(f"  [DB] {'更新' if exists else '新增'}关节: {jtype}/{name}")
 
 
 def update_joints(jtype, name, value):
@@ -303,19 +305,11 @@ def delete_positions(ptype, name):
 #  地图点位 CRUD
 # ═══════════════════════════════════════════════════════════
 
-def get_map_points(source=None):
-    """查询地图点位"""
+def get_map_points():
+    """查询所有地图点位"""
     with _db_lock:
         cur = _mem_conn.cursor()
-        if source:
-            cur.execute(
-                "SELECT name, source, position, orientation FROM map_points WHERE source=? ORDER BY name",
-                (source,)
-            )
-        else:
-            cur.execute(
-                "SELECT name, source, position, orientation FROM map_points ORDER BY source, name"
-            )
+        cur.execute("SELECT name, source, position, orientation FROM map_points ORDER BY source, name")
         rows = cur.fetchall()
     return [{
         "name": r[0],
@@ -326,29 +320,38 @@ def get_map_points(source=None):
 
 
 def save_map_point(name, position, orientation, source="local"):
-    """保存或更新地图点位"""
+    """保存或更新地图点位（先查再插入/更新，不用 ON CONFLICT）"""
     with _db_lock:
         cur = _mem_conn.cursor()
-        cur.execute(
-            "INSERT INTO map_points (name, source, position, orientation) VALUES (?, ?, ?, ?) "
-            "ON CONFLICT(name, source) DO UPDATE SET position=excluded.position, orientation=excluded.orientation",
-            (name, source,
-             json.dumps(position, ensure_ascii=False),
-             json.dumps(orientation, ensure_ascii=False))
-        )
+        cur.execute("SELECT 1 FROM map_points WHERE name=?", (name,))
+        exists = cur.fetchone() is not None
+        if exists:
+            cur.execute(
+                "UPDATE map_points SET position=?, orientation=? WHERE name=?",
+                (json.dumps(position, ensure_ascii=False),
+                 json.dumps(orientation, ensure_ascii=False),
+                 name)
+            )
+        else:
+            cur.execute(
+                "INSERT INTO map_points (name, source, position, orientation) VALUES (?, ?, ?, ?)",
+                (name, source,
+                 json.dumps(position, ensure_ascii=False),
+                 json.dumps(orientation, ensure_ascii=False))
+            )
         _mem_conn.commit()
         _sync_to_file()
-    print(f"  [DB] 保存地图点位: {name} ({source})")
+    print(f"  [DB] {'更新' if exists else '新增'}地图点位: {name} ({source})")
 
 
-def delete_map_point(name, source="local"):
-    """删除地图点位"""
+def delete_map_point(name):
+    """删除地图点位（只按名称删除，不考虑 source）"""
     with _db_lock:
         cur = _mem_conn.cursor()
-        cur.execute("DELETE FROM map_points WHERE name=? AND source=?", (name, source))
+        cur.execute("DELETE FROM map_points WHERE name=?", (name,))
         _mem_conn.commit()
         _sync_to_file()
-    print(f"  [DB] 删除地图点位: {name} ({source})")
+    print(f"  [DB] 删除地图点位: {name}")
 
 
 # ═══════════════════════════════════════════════════════════
@@ -356,7 +359,7 @@ def delete_map_point(name, source="local"):
 # ═══════════════════════════════════════════════════════════
 
 def get_all_data():
-    """查询所有关节数据和位姿数据，返回统一格式列表"""
+    """查询所有关节数据、位姿数据和地图点位数据，返回统一格式列表"""
     items = []
     for item in get_joints():
         items.append({
@@ -372,6 +375,16 @@ def get_all_data():
             "name": item["name"],
             "value": item["value"]
         })
+    for item in get_map_points():
+        items.append({
+            "category": "map_points",
+            "type": item["source"],
+            "name": item["name"],
+            "value": {
+                "position": item["position"],
+                "orientation": item["orientation"]
+            }
+        })
     return items
 
 
@@ -381,6 +394,13 @@ def save_data(category, dtype, name, value):
         save_joints(dtype, name, value)
     elif category == "positions":
         save_positions(dtype, name, value)
+    elif category == "map_points":
+        position = value.get("position") if isinstance(value, dict) else value
+        orientation = value.get("orientation") if isinstance(value, dict) else None
+        if position is None:
+            print(f"  [DB] map_points 保存缺少 position")
+            return
+        save_map_point(name, list(position), list(orientation or [0, 0, 0, 1]), source=dtype or "local")
     else:
         print(f"  [DB] 未知数据类别: {category}")
 
@@ -391,6 +411,8 @@ def update_data(category, dtype, name, value):
         update_joints(dtype, name, value)
     elif category == "positions":
         update_positions(dtype, name, value)
+    elif category == "map_points":
+        save_map_point(name, list(value.get("position")), list(value.get("orientation")), source=dtype or "local")
     else:
         print(f"  [DB] 未知数据类别: {category}")
 
@@ -401,5 +423,7 @@ def delete_data(category, dtype, name):
         delete_joints(dtype, name)
     elif category == "positions":
         delete_positions(dtype, name)
+    elif category == "map_points":
+        delete_map_point(name)
     else:
         print(f"  [DB] 未知数据类别: {category}")

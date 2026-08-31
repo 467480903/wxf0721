@@ -87,6 +87,7 @@ def on_connect(client, userdata, flags, rc, properties=None):
         client.subscribe(common.TOPIC_STATUS_CONTROL, qos=0)
         client.subscribe(common.TOPIC_COMMANDS_DATA, qos=2)
         client.subscribe(common.TOPIC_MAP_CONTROL, qos=0)
+        client.subscribe(common.TOPIC_MAP_DB_CONTROL, qos=0)
         client.subscribe(common.TOPIC_PROGRAMS_CONTROL, qos=0)
         client.subscribe(common.TOPIC_MODBUS_CONTROL, qos=0)
         client.subscribe(common.TOPIC_DATA_READ, qos=0)
@@ -98,6 +99,7 @@ def on_connect(client, userdata, flags, rc, properties=None):
         print(f"  - {common.TOPIC_STATUS_CONTROL}")
         print(f"  - {common.TOPIC_COMMANDS_DATA}")
         print(f"  - {common.TOPIC_MAP_CONTROL}")
+        print(f"  - {common.TOPIC_MAP_DB_CONTROL}")
         print(f"  - {common.TOPIC_PROGRAMS_CONTROL}")
         print(f"  - {common.TOPIC_MODBUS_CONTROL}")
         print(f"  - {common.TOPIC_DATA_READ}")
@@ -171,6 +173,16 @@ def on_message(client, userdata, msg):
         cmd = payload.get("command")
         print(f"\n[命令] map/control: {cmd}")
         map_module.handle_control(payload)
+
+    elif topic == common.TOPIC_MAP_DB_CONTROL:
+        # DB 地图点位管理（read/update/delete/goto，只操作 robot_data.db）
+        cmd = payload.get("command")
+        print(f"\n[命令] map/db_control: {cmd}")
+        if cmd == "goto":
+            # 导航为阻塞操作，提交执行器避免卡住 MQTT 循环
+            _cmd_executor.submit(map_module.handle_db_control, payload)
+        else:
+            map_module.handle_db_control(payload)
 
     elif topic == common.TOPIC_PROGRAMS_CONTROL:
         # 程序调试命令（run/debug/next/stop/copy/codes/read_files）

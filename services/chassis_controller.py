@@ -446,13 +446,6 @@ class RobotController:
         pos = wp["position"]
         ori = wp["orientation"]
         src = wp.get("source", "?")
-        mode_str = "高精度" if high_precision else "普通"
-
-        # 取消旧任务
-        state, _, _ = self._task_state()
-        if state not in _DONE and state != 0:
-            self._log("   取消旧任务...")
-            self._cancel_navi()
 
         # 构建请求
         req = agibot_gdk.NaviReq()
@@ -464,8 +457,66 @@ class RobotController:
         req.target.orientation.z = ori[2]
         req.target.orientation.w = ori[3]
 
+        return self._navi_to_pose(req, name, pos, src, high_precision, timeout)
+
+    def go_by_pose(self,
+                   position: list,
+                   orientation: list,
+                   name: str = "db_point",
+                   timeout: float = 120.0) -> bool:
+        """
+        直接按坐标导航（不查地图 waypoints，用于 DB 地图点位「到位」）
+
+        Parameters
+        ----------
+        position : list
+            目标位置 [x, y, z]
+        orientation : list
+            目标朝向四元数 [x, y, z, w]
+        name : str
+            显示用名称
+        timeout : float
+            超时时间（秒）
+
+        Returns
+        -------
+        bool : True=成功到达，False=失败
+        """
+        if not (isinstance(position, (list, tuple)) and len(position) >= 2):
+            self._log(f"❌ 无效坐标: {position}")
+            return False
+        ori = orientation if (isinstance(orientation, (list, tuple))
+                              and len(orientation) >= 4) else [0, 0, 0, 1]
+
+        req = agibot_gdk.NaviReq()
+        req.target.position.x    = float(position[0])
+        req.target.position.y    = float(position[1])
+        req.target.position.z    = float(position[2]) if len(position) > 2 else 0.0
+        req.target.orientation.x = float(ori[0])
+        req.target.orientation.y = float(ori[1])
+        req.target.orientation.z = float(ori[2])
+        req.target.orientation.w = float(ori[3])
+
+        return self._navi_to_pose(req, name, list(position), "db", False, timeout)
+
+    def _navi_to_pose(self,
+                      req,
+                      name: str,
+                      pos: list,
+                      src: str,
+                      high_precision: bool,
+                      timeout: float) -> bool:
+        """导航执行主体：发请求 → 等启动 → 等完成（go / go_by_pose 共用）"""
+        mode_str = "高精度" if high_precision else "普通"
+
+        # 取消旧任务
+        state, _, _ = self._task_state()
+        if state not in _DONE and state != 0:
+            self._log("   取消旧任务...")
+            self._cancel_navi()
+
         self._log(f"\n🚀 导航到: '{name}' [{src}] ({mode_str})")
-        self._log(f"   目标: ({pos[0]:.4f}, {pos[1]:.4f}, {pos[2]:.4f})")
+        self._log(f"   目标: ({pos[0]:.4f}, {pos[1]:.4f}, {pos[2] if len(pos) > 2 else 0:.4f})")
 
         try:
             if high_precision:

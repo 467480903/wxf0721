@@ -90,7 +90,7 @@ def _load_joints_data(cmd_type, data):
     if isinstance(data, dict):
         return data, f"内联关节角 ({len(data)} 个关节)"
 
-    rows = db.get_joints(cmd_type, data)
+    rows = [r for r in db.get_joints() if r["type"] == cmd_type and r["name"] == data]
     if not rows:
         return None, f"找不到 joints/{cmd_type}/{data}"
     pos_data = rows[0]["value"]

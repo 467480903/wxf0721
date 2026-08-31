@@ -35,6 +35,7 @@ const DONE_TOPIC = '/humanoid/commands/done';
 const MAP_POINTS_TOPIC = '/humanoid/map/points';
 const MAP_INFO_TOPIC = '/humanoid/map/info';
 const MAP_GRID_TOPIC = '/humanoid/map/grid';
+const MAP_DB_DATA_TOPIC = '/humanoid/map/db_data';
 const PROGRAMS_STEP_TOPIC = '/humanoid/programs/step';
 const PROGRAMS_CODES_TOPIC = '/humanoid/programs/codes';
 const PROGRAMS_FILES_TOPIC = '/humanoid/programs/files';
@@ -50,6 +51,7 @@ const JOINTS_SAVE_TOPIC = '/humanoid/joints/save';
 const STATUS_CTRL_TOPIC = '/humanoid/status/control';
 const COMMANDS_TOPIC = '/humanoid/commands/data';
 const MAP_CTRL_TOPIC = '/humanoid/map/control';
+const MAP_DB_CTRL_TOPIC = '/humanoid/map/db_control';
 const PROGRAMS_CTRL_TOPIC = '/humanoid/programs/control';
 const MODBUS_CTRL_TOPIC = '/humanoid/modbus/control';
 
@@ -72,6 +74,7 @@ class MqttClient {
         this.mapPointsCallbacks = [];
         this.mapInfoCallbacks = [];
         this.mapGridCallbacks = [];
+        this.mapDbDataCallbacks = [];
         this.modbusDataCallbacks = [];
     }
 
@@ -121,6 +124,8 @@ class MqttClient {
                     this.mapInfoCallbacks.forEach(cb => cb(data));
                 } else if (message.destinationName === MAP_GRID_TOPIC) {
                     this.mapGridCallbacks.forEach(cb => cb(data));
+                } else if (message.destinationName === MAP_DB_DATA_TOPIC) {
+                    this.mapDbDataCallbacks.forEach(cb => cb(data));
                 } else if (message.destinationName === MODBUS_DATA_TOPIC) {
                     this.modbusDataCallbacks.forEach(cb => cb(data));
                 }
@@ -147,6 +152,7 @@ class MqttClient {
                 this.client.subscribe(MAP_POINTS_TOPIC, { qos: 0 });
                 this.client.subscribe(MAP_INFO_TOPIC, { qos: 0 });
                 this.client.subscribe(MAP_GRID_TOPIC, { qos: 0 });
+                this.client.subscribe(MAP_DB_DATA_TOPIC, { qos: 0 });
                 this.client.subscribe(MODBUS_DATA_TOPIC, { qos: 0 });
             },
             onFailure: (err) => {
@@ -344,6 +350,19 @@ class MqttClient {
     }
 
     /**
+     * 注册 DB 地图点位数据回调（/humanoid/map/db_data）
+     */
+    addMapDbDataCallback(callback) {
+        if (!this.mapDbDataCallbacks.includes(callback)) {
+            this.mapDbDataCallbacks.push(callback);
+        }
+    }
+
+    removeMapDbDataCallback(callback) {
+        this.mapDbDataCallbacks = this.mapDbDataCallbacks.filter(cb => cb !== callback);
+    }
+
+    /**
      * 注册 Modbus 数据回调
      */
     addModbusDataCallback(callback) {
@@ -439,6 +458,17 @@ class MqttClient {
     publishMapControl(command, data = null) {
         const payload = data !== null ? { command, data } : { command };
         this.publishToTopic(MAP_CTRL_TOPIC, payload);
+    }
+
+    /**
+     * 发送 DB 地图点位控制命令到 /humanoid/map/db_control
+     * 只操作 robot_data.db 的 map_points 表，不读写 G2 机器人地图
+     * @param {string} command - 命令名（read/update/delete/goto）
+     * @param {object} data - 命令数据，如 { name: 'A', source: 'local', position: [...], orientation: [...] }
+     */
+    publishMapDbControl(command, data = null) {
+        const payload = data !== null ? { command, data } : { command };
+        this.publishToTopic(MAP_DB_CTRL_TOPIC, payload);
     }
 
     /**

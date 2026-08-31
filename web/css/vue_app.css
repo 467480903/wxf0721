@@ -765,6 +765,42 @@ html, body {
     filter: none;
 }
 
+/* ── 地图点位编辑弹窗（data-map-points.js）────────── */
+.djc-btn-save {
+    background: #409eff;
+    border-color: #409eff;
+    color: #fff;
+}
+.djc-btn-save:hover {
+    background: #66b1ff;
+    border-color: #66b1ff;
+    color: #fff;
+}
+.dmp-edit-grid {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 10px 12px;
+    align-items: center;
+}
+.dmp-edit-grid label {
+    color: #606266;
+    font-size: 13px;
+    text-align: right;
+}
+.dmp-edit-grid input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #303133;
+    box-sizing: border-box;
+}
+.dmp-edit-grid input:focus {
+    outline: none;
+    border-color: #409eff;
+}
+
 /* ── 自定义滚动条 ────────────────────────────────── */
 .djc-table-wrap::-webkit-scrollbar {
     width: 6px;

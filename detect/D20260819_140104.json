@@ -1,0 +1,70 @@
+{
+  "model_path": "holes.pt",
+  "image_path": "/home/wxf/yolo/detect_output/20260819_140105/rgb.png",
+  "depth_raw_path": "/home/wxf/yolo/detect_output/20260819_140105/depth.raw",
+  "depth_offset_px": 12,
+  "depth_shape": [
+    400,
+    640
+  ],
+  "image_size": {
+    "height": 400,
+    "width": 640
+  },
+  "detection": {
+    "point1": {
+      "label": "a",
+      "center": [
+        411.19,
+        284.12
+      ]
+    },
+    "point2": {
+      "label": "a",
+      "center": [
+        242.6,
+        286.43
+      ]
+    }
+  },
+  "offset": {
+    "line_center": [
+      326.89,
+      285.28
+    ],
+    "image_center_x": 320.0,
+    "horizontal_offset_px": 6.89,
+    "direction": "偏右"
+  },
+  "slope": {
+    "slope": -0.0137,
+    "angle_rad": 3.1279,
+    "angle_deg": 179.2
+  },
+  "depth": {
+    "point1_center_mm": 832.0,
+    "point1_left_offset_mm": 1050.6923076923076,
+    "point1_left_sample_pixel": [
+      411,
+      296
+    ],
+    "point2_center_mm": 822.0,
+    "point2_right_offset_mm": 1029.5,
+    "point2_right_sample_pixel": [
+      242,
+      298
+    ],
+    "center_mm": 827.7142857142857,
+    "center_sample_pixel": [
+      326,
+      285
+    ]
+  },
+  "output_files": [
+    "result.jpg",
+    "yolo_depth_rgb.jpg",
+    "yolo_depth_depth.jpg",
+    "yolo_depth_rgb_with_depth.jpg",
+    "yolo_depth_depth_marked.jpg"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "name": "20260828_160338",
+  "marker_size_mm": 100.0,
+  "marker_spacing_mm": 730.0,
+  "spacing_source": "user",
+  "target_ids": [
+    1,
+    2
+  ],
+  "left_marker_id": 1,
+  "right_marker_id": 2,
+  "tvec": [
+    -3.183793972996399,
+    -22.29661757147448,
+    865.8082351928947
+  ],
+  "rvec": [
+    1.5116531539438502,
+    -1.530190884971893,
+    1.0059466146663656
+  ],
+  "image_width": 1280,
+  "image_height": 800,
+  "dict": "tag36h11",
+  "reprojection_error_px": 0.43666801005575995
+}

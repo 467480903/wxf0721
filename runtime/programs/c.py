@@ -1,54 +1,34 @@
-import os
-import sys
+from minth import Minth
 import time
 
-# 确保能找到 agibot_gdk 模块
-_GDK_LIB = "/home/agi/app/gdk/lib"
-if _GDK_LIB not in sys.path:
-    sys.path.insert(0, _GDK_LIB)
-# 确保能找到 GDK 动态库
-_HOME_LIB = "/home/agi/app/lib"
-if os.path.isdir(_HOME_LIB):
-    os.environ["LD_LIBRARY_PATH"] = _HOME_LIB + ":" + os.environ.get("LD_LIBRARY_PATH", "")
-
-import agibot_gdk
-
-GDK_INIT_WAIT_S = 2.0
-
-
-def main():
-    if agibot_gdk.gdk_init() != agibot_gdk.GDKRes.kSuccess:
-        print("GDK初始化失败")
-        return
-    print("GDK初始化成功")
-
-    try:
-        robot = agibot_gdk.Robot()
-        time.sleep(GDK_INIT_WAIT_S)
-
-        # 打开左夹爪（position=-0.785 为完全张开）
-        joint_states = agibot_gdk.JointStates()
-        joint_states.group = "left_tool"
-        joint_states.target_type = "omnipicker"
-
-        joint_state = agibot_gdk.JointState()
-        joint_state.position = -0.785
-        joint_states.states = [joint_state]
-        joint_states.nums = 1
-
-        print("正在打开左夹爪...")
-        robot.move_ee_pos(joint_states)
-        print("左夹爪打开完成")
-
-        time.sleep(2)
-    except Exception as e:
-        print(f"夹爪控制失败: {e}")
-    finally:
-        if agibot_gdk.gdk_release() != agibot_gdk.GDKRes.kSuccess:
-            print("GDK释放失败")
-        else:
-            print("GDK释放成功")
-
-
-if __name__ == "__main__":
-    main()
+G2 = Minth.G2()
+G2.WBC("Wwait")
+G2.GRIPPER({"left": -0.7, "right": -0.7})
+G2.GO(4)
+G2.YOLO("7.14.pt")
+G2.CHASSIS_CORRECT()
+G2.WAIST_CORRECT()
+G2.ARMS("befocatch")
+G2.ARMS("catch3")
+G2.VLA("/data/pi0.5_HONGDA_2605/")
+G2.GRIPPER({"left": -0.0, "right": -0.0})
+G2.OFFSET({"lz": 100,  "rz": 100})
+G2.OFFSET({"lx": -100, "rx": -100})
+G2.REL({"x": -1.0})
+G2.GO(9)
+G2.YOLO("wxf.pt")
+G2.CHASSIS_CORRECT(px_to_meter=-130/60/1000)
+G2.WAIST_CORRECT()
+G2.VLA("/data/pi0.5_HONGDA_2605_2/")
+G2.ARMS("A2P1")
+G2.ARMS("A2P2")
+G2.ARMS("A2P3")
+G2.VLA("/data/pi0.5_HONGDA_2605_2/")
+G2.ARMS("A2P4")
+G2.ARMS("A2P5")
+G2.GRIPPER({"left": -0.7, "right": -0.7})
+time.sleep(1.5)
+G2.ARMS("A2P6")
+G2.REL({"x": -1.0})
+G2.GO(6)
+G2.WBC("Wwait")
