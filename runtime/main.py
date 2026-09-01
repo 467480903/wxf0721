@@ -13,9 +13,6 @@ stref="/data/wxf/wxf0721/runtime/references-tag/ref_id3_id4_20260901_133511.json
 pt(stref,G2=G2,max_rounds=4)
 
 
-
-
-
 # G2.GRIPPER({"left": -0.7, "right": -0.4})
 # positioning("/data/wxf/wxf0721/runtime/references-tag/reference_id3_id4.json",G2=G2,max_rounds=4)
 # tag_correct("/data/wxf/wxf0721/runtime/tag_ref/ref_id11_20260828_152155.json", G2)
