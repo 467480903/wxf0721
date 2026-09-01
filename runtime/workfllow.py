@@ -21,7 +21,7 @@ def putA():
     G2.ARMS("a5")
     G2.REL({"x": -1.7,"y": -1.7}) 
     G2.GO(MAP_POS_PutSmall)
-    pt("/data/wxf/wxf0721/runtime/references-tag/reference_id5_id6.json",G2=G2)
+    positioning("/data/wxf/wxf0721/runtime/references-tag/ref_id5_id6_dun.json",G2=G2)
     G2.WBC("xx")
 
     while True:
@@ -51,15 +51,19 @@ def putA():
     G2.WBC("W9")
     G2.WBC("W10") 
 
+def UpPutBig():
+    G2.ARMS("a3")
+    # G2.GO(3)
+    G2.WBC("xx")
+    G2.GO(MAP_POS_PutBig)
+    pt("/data/wxf/wxf0721/runtime/references-tag/ref_id3_id4_20260901_133511.json",G2=G2)
+    
 def putBig():
     G2.ARMS("a3")
-    # G2.ARMS("a4")
     G2.ARMS("a5")
     G2.GO(3)
     G2.GO(MAP_POS_PutBig)
-
-    pt("/data/wxf/wxf0721/runtime/references-tag/reference_id3_id4.json",G2=G2)
-    
+    positioning("/data/wxf/wxf0721/runtime/references-tag/ref_id3_id4_dun.json",G2=G2)
     G2.WBC("xx")
 
     while True:
@@ -76,8 +80,8 @@ def putBig():
 
     G2.WBC("x2")
     G2.WBC("x3")
-    G2.GRIPPER({"right": -0.1})
     G2.WBC("x4")    #塞入！！！！！！！！！！！！！！！！！！！！！！！！！
+    G2.GRIPPER({"right": -0.1})
     G2.WBC("x5")
     G2.WBC("x6")
     G2.GRIPPER({"right": -0.2})
@@ -201,3 +205,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # UpPutBig()

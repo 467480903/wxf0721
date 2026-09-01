@@ -62,6 +62,9 @@ TOPIC_MAP_GRID       = "/humanoid/map/grid"          # 服务端发布OccupancyG
 TOPIC_MAP_DB_CONTROL = "/humanoid/map/db_control"    # 客户端控制 DB 地图点位（不操作 G2 地图）
 TOPIC_MAP_DB_DATA    = "/humanoid/map/db_data"       # 服务端发布 DB 地图点位数据
 
+TOPIC_POSITIONS_CONTROL = "/humanoid/positions/control"  # 客户端控制坐标点位（到位/更新）
+TOPIC_POSITIONS_DATA    = "/humanoid/positions/data"     # 服务端发布坐标点位执行结果
+
 TOPIC_PROGRAMS_CONTROL = "/humanoid/programs/control"  # 客户端控制程序调试
 TOPIC_PROGRAMS_STEP    = "/humanoid/programs/step"     # 服务端发布执行步骤
 TOPIC_PROGRAMS_CODES   = "/humanoid/programs/codes"    # 服务端发布 main.py 代码内容
@@ -107,7 +110,7 @@ def init_gdk():
     if _gdk_ready:
         return
 
-    # 让组件模块能找到 chassis_controller / offset_move_common
+    # 让组件模块能找到 chassis_controller / EndEffectorController
     if SCRIPT_DIR not in sys.path:
         sys.path.insert(0, SCRIPT_DIR)
 
@@ -125,7 +128,7 @@ def init_gdk():
     time.sleep(2)  # 等待 DDS 连接就绪
 
     # 末端执行器相对移动控制器
-    from offset_move_common import EndEffectorController
+    from EndEffectorController import EndEffectorController
     ee_controller = EndEffectorController(robot)
 
     # 底盘导航控制器（内部会读取地图导航点）

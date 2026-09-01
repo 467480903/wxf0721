@@ -67,6 +67,7 @@ import joints
 import status
 import commands
 import map as map_module
+import positions
 import programs
 import modbus
 import s7
@@ -88,6 +89,7 @@ def on_connect(client, userdata, flags, rc, properties=None):
         client.subscribe(common.TOPIC_COMMANDS_DATA, qos=2)
         client.subscribe(common.TOPIC_MAP_CONTROL, qos=0)
         client.subscribe(common.TOPIC_MAP_DB_CONTROL, qos=0)
+        client.subscribe(common.TOPIC_POSITIONS_CONTROL, qos=0)
         client.subscribe(common.TOPIC_PROGRAMS_CONTROL, qos=0)
         client.subscribe(common.TOPIC_MODBUS_CONTROL, qos=0)
         client.subscribe(common.TOPIC_DATA_READ, qos=0)
@@ -100,6 +102,7 @@ def on_connect(client, userdata, flags, rc, properties=None):
         print(f"  - {common.TOPIC_COMMANDS_DATA}")
         print(f"  - {common.TOPIC_MAP_CONTROL}")
         print(f"  - {common.TOPIC_MAP_DB_CONTROL}")
+        print(f"  - {common.TOPIC_POSITIONS_CONTROL}")
         print(f"  - {common.TOPIC_PROGRAMS_CONTROL}")
         print(f"  - {common.TOPIC_MODBUS_CONTROL}")
         print(f"  - {common.TOPIC_DATA_READ}")
@@ -146,10 +149,15 @@ def on_message(client, userdata, msg):
         _cmd_executor.submit(_run_joints)
 
     elif topic == common.TOPIC_JOINTS_SAVE:
-        # 数据持久化命令（save_joints/save_position/read/update/delete）
+        # 数据持久化命令（save_joints/read/update/delete）
+        # save_position 和 category=positions 的 update/delete 分流到 positions
         cmd = payload.get("command")
+        category = payload.get("category", "")
         print(f"\n[命令] joints/save: {cmd}")
-        joints.handle_save(payload)
+        if cmd == "save_position" or (cmd in ("update", "delete") and category == "positions"):
+            positions.handle_save(payload)
+        else:
+            joints.handle_save(payload)
 
     elif topic == common.TOPIC_STATUS_CONTROL:
         # 状态/点云控制命令（start_cloud/stop_cloud）
@@ -183,6 +191,16 @@ def on_message(client, userdata, msg):
             _cmd_executor.submit(map_module.handle_db_control, payload)
         else:
             map_module.handle_db_control(payload)
+
+    elif topic == common.TOPIC_POSITIONS_CONTROL:
+        # 坐标点位（末端位姿）到位/更新
+        cmd = payload.get("command")
+        print(f"\n[命令] positions/control: {cmd}")
+        if cmd == "goto":
+            # 末端轨迹运动为阻塞操作，提交执行器避免卡住 MQTT 循环
+            _cmd_executor.submit(positions.handle_control, payload)
+        else:
+            positions.handle_control(payload)
 
     elif topic == common.TOPIC_PROGRAMS_CONTROL:
         # 程序调试命令（run/debug/next/stop/copy/codes/read_files）

@@ -47,6 +47,9 @@ COMMANDS_TOPIC = "/humanoid/commands/data"
 DONE_TOPIC = "/humanoid/commands/done"
 # 相机控制主题
 CAMERA_TOPIC = "/humanoid/camera/control"
+# 坐标点位控制主题
+POSITIONS_CTRL_TOPIC = "/humanoid/positions/control"
+POSITIONS_DATA_TOPIC = "/humanoid/positions/data"
 
 # 默认超时时间（秒）
 DEFAULT_TIMEOUT = 15
@@ -71,6 +74,8 @@ class _RobotBase:
         self.port = port
         self.timeout = timeout
         self._done_event = threading.Event()
+        self._positions_event = threading.Event()
+        self._positions_result = None
         self._connected = False
         cid = client_id or f"minth_{self.__class__.__name__}_{id(self)}"
         self._client = mqtt.Client(
@@ -93,6 +98,7 @@ class _RobotBase:
     def _on_connect(self, client, userdata, flags, rc, properties=None):
         if rc == 0:
             client.subscribe(DONE_TOPIC, qos=2)
+            client.subscribe(POSITIONS_DATA_TOPIC, qos=0)
             self._connected = True
         else:
             raise ConnectionError(f"MQTT 连接失败，返回码: {rc}")
@@ -100,6 +106,13 @@ class _RobotBase:
     def _on_message(self, client, userdata, msg):
         if msg.topic == DONE_TOPIC:
             self._done_event.set()
+        elif msg.topic == POSITIONS_DATA_TOPIC:
+            try:
+                data = json.loads(msg.payload.decode())
+                self._positions_result = data
+                self._positions_event.set()
+            except Exception:
+                pass
 
     # ── 核心：发送命令并等待完成 ────────────────────────────
     # 关节命令集合（发送到 /humanoid/joints/control）
@@ -264,6 +277,52 @@ class G2(_RobotBase):
             bool
         """
         return self._send_and_wait("offset_move", data)
+
+    def MoveL(self, position, offset=None):
+        """末端运动到数据库中的坐标点位，可附加相对偏移
+
+        从数据库取出 position 的坐标值，根据 offset 加减后执行到位运动。
+        offset 直接修改目标坐标，而非先到位再偏移。
+
+        Args:
+            position: 坐标点位名称字符串，如 "P1"
+            offset:  可选，相对偏移量（毫米），如 {"lx": 20}、{"ly": 10}、{"lx":10,"ly":10}
+                      lx/ly/lz 对应 X/Y/Z 方向平移，rx/ry/rz 对应旋转（度）
+                      不传时仅执行到位运动
+        Returns:
+            bool: True=运动完成，False=超时或失败
+        """
+        payload = {"command": "goto", "data": {"type": "right", "name": position}}
+        if offset is not None:
+            payload["data"]["offset"] = offset
+        return self._goto_position(position, payload)
+
+    def _goto_position(self, position, payload=None):
+        """发送 goto 命令并等待结果"""
+        if payload is None:
+            payload = {"command": "goto", "data": {"type": "right", "name": position}}
+        msg_str = json.dumps(payload, ensure_ascii=False)
+
+        self._positions_event.clear()
+        self._positions_result = None
+        self._client.publish(POSITIONS_CTRL_TOPIC, msg_str, qos=0)
+        print(f"[Minth] → MoveL: {position}")
+
+        done = self._positions_event.wait(timeout=30)
+        if not done:
+            print(f"[Minth] ✗ MoveL 超时 (30s)")
+            return False
+
+        result = self._positions_result or {}
+        cmd = result.get("command", "")
+        data = result.get("data", {})
+        success = data.get("success", False)
+        message = data.get("message", "")
+        if success:
+            print(f"[Minth] ✓ MoveL: {message}")
+        else:
+            print(f"[Minth] ✗ MoveL: {message}")
+        return success
 
     def REL(self, data):
         """底盘相对运动

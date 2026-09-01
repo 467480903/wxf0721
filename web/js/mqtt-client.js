@@ -36,6 +36,7 @@ const MAP_POINTS_TOPIC = '/humanoid/map/points';
 const MAP_INFO_TOPIC = '/humanoid/map/info';
 const MAP_GRID_TOPIC = '/humanoid/map/grid';
 const MAP_DB_DATA_TOPIC = '/humanoid/map/db_data';
+const POSITIONS_DATA_TOPIC = '/humanoid/positions/data';
 const PROGRAMS_STEP_TOPIC = '/humanoid/programs/step';
 const PROGRAMS_CODES_TOPIC = '/humanoid/programs/codes';
 const PROGRAMS_FILES_TOPIC = '/humanoid/programs/files';
@@ -52,6 +53,7 @@ const STATUS_CTRL_TOPIC = '/humanoid/status/control';
 const COMMANDS_TOPIC = '/humanoid/commands/data';
 const MAP_CTRL_TOPIC = '/humanoid/map/control';
 const MAP_DB_CTRL_TOPIC = '/humanoid/map/db_control';
+const POSITIONS_CTRL_TOPIC = '/humanoid/positions/control';
 const PROGRAMS_CTRL_TOPIC = '/humanoid/programs/control';
 const MODBUS_CTRL_TOPIC = '/humanoid/modbus/control';
 
@@ -75,6 +77,7 @@ class MqttClient {
         this.mapInfoCallbacks = [];
         this.mapGridCallbacks = [];
         this.mapDbDataCallbacks = [];
+        this.positionsDataCallbacks = [];
         this.modbusDataCallbacks = [];
     }
 
@@ -126,6 +129,8 @@ class MqttClient {
                     this.mapGridCallbacks.forEach(cb => cb(data));
                 } else if (message.destinationName === MAP_DB_DATA_TOPIC) {
                     this.mapDbDataCallbacks.forEach(cb => cb(data));
+                } else if (message.destinationName === POSITIONS_DATA_TOPIC) {
+                    this.positionsDataCallbacks.forEach(cb => cb(data));
                 } else if (message.destinationName === MODBUS_DATA_TOPIC) {
                     this.modbusDataCallbacks.forEach(cb => cb(data));
                 }
@@ -153,6 +158,7 @@ class MqttClient {
                 this.client.subscribe(MAP_INFO_TOPIC, { qos: 0 });
                 this.client.subscribe(MAP_GRID_TOPIC, { qos: 0 });
                 this.client.subscribe(MAP_DB_DATA_TOPIC, { qos: 0 });
+                this.client.subscribe(POSITIONS_DATA_TOPIC, { qos: 0 });
                 this.client.subscribe(MODBUS_DATA_TOPIC, { qos: 0 });
             },
             onFailure: (err) => {
@@ -363,6 +369,19 @@ class MqttClient {
     }
 
     /**
+     * 注册坐标点位数据回调（/humanoid/positions/data）
+     */
+    addPositionsDataCallback(callback) {
+        if (!this.positionsDataCallbacks.includes(callback)) {
+            this.positionsDataCallbacks.push(callback);
+        }
+    }
+
+    removePositionsDataCallback(callback) {
+        this.positionsDataCallbacks = this.positionsDataCallbacks.filter(cb => cb !== callback);
+    }
+
+    /**
      * 注册 Modbus 数据回调
      */
     addModbusDataCallback(callback) {
@@ -469,6 +488,16 @@ class MqttClient {
     publishMapDbControl(command, data = null) {
         const payload = data !== null ? { command, data } : { command };
         this.publishToTopic(MAP_DB_CTRL_TOPIC, payload);
+    }
+
+    /**
+     * 发送坐标点位控制命令到 /humanoid/positions/control
+     * @param {string} command - 命令名（goto/update）
+     * @param {*} data - 命令数据
+     */
+    publishPositionsControl(command, data = null) {
+        const payload = data !== null ? { command, data } : { command };
+        this.publishToTopic(POSITIONS_CTRL_TOPIC, payload);
     }
 
     /**

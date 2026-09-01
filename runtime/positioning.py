@@ -3,6 +3,7 @@
 流程 (严格最多 max_rounds 次拍照, 默认 2):
   每轮: 拍照 → 解算 → 已收敛则结束, 否则旋转+平移同步纠偏
   最后一轮纠偏后不再拍照验证
+  max_rounds=0: 只拍照解算写残余误差 JSON, 不纠偏
 
 容差: 旋转 ±2.5°, 平移 ±10mm。
 增益: GAIN_X/GAIN_Y 补偿实际移动与指令的偏差 (x 实测 ~93%)。
@@ -36,7 +37,6 @@ RESIDUAL_JSON = os.path.join(BASE_DIR, "positioning_residual.json")
 
 # ============ 容差 ============
 YAW_TOL_DEG = 1.3          # 旋转容差
-YAW_WAIST_MAX_DEG = 3.0    # ≤此角度的旋转纠偏走腰部, 超过走底盘
 TRANS_TOL_MM = 10.0        # 平移容差
 FAIL_REPROJ_ERR_PX = 1.5   # 重投影超此值不执行
 
@@ -127,8 +127,18 @@ def step_move(G2, ref_path, step):
     move_x = -dt[0] / 1000.0 * GAIN_X
     move_y = -dt[1] / 1000.0 * GAIN_Y
 
-    if abs(dyaw) <= YAW_WAIST_MAX_DEG:
-        # ≤3°: 旋转走腰部 (offset 负=逆时针, 故右转=正), 平移走底盘
+    if step == 1:
+        # 第1次: 旋转+平移同步走底盘 (dyaw>0 左转残差 → 右转, yaw_cmd 负)
+        yaw_cmd = -np.radians(dyaw)
+        print(f"  [纠偏-底盘] yaw={np.degrees(yaw_cmd):+.2f}°, x={move_x:+.4f}m, y={move_y:+.4f}m")
+        if not confirm_large_move(move_x, move_y, dyaw):
+            print("  [跳过] 用户未确认")
+            return r, False
+        if not G2.REL({"x": move_x, "y": move_y, "yaw_rad": yaw_cmd}):
+            print("[错误] 纠偏失败")
+            return None, False
+    else:
+        # 后续: 旋转走腰部 (offset 正=右转), 平移走底盘
         waist_offset = np.radians(dyaw)
         print(f"  [纠偏-腰部] offset={waist_offset:+.4f}rad ({dyaw:+.2f}°), "
               f"x={move_x:+.4f}m, y={move_y:+.4f}m")
@@ -139,16 +149,6 @@ def step_move(G2, ref_path, step):
             print("[错误] 腰部纠偏失败")
             return None, False
         if not G2.REL({"x": move_x, "y": move_y}):
-            print("[错误] 纠偏失败")
-            return None, False
-    else:
-        # >3°: 旋转+平移同步走底盘 (dyaw>0 左转残差 → 右转, yaw_cmd 负)
-        yaw_cmd = -np.radians(dyaw)
-        print(f"  [纠偏] yaw={np.degrees(yaw_cmd):+.2f}°, x={move_x:+.4f}m, y={move_y:+.4f}m")
-        if not confirm_large_move(move_x, move_y, dyaw):
-            print("  [跳过] 用户未确认")
-            return r, False
-        if not G2.REL({"x": move_x, "y": move_y, "yaw_rad": yaw_cmd}):
             print("[错误] 纠偏失败")
             return None, False
     time.sleep(0.5)
@@ -196,16 +196,26 @@ def positioning(ref_path, G2=None, max_rounds=MAX_ROUNDS):
 
     每轮: 拍照 → 解算 → 已收敛则结束, 否则纠偏
     最后一轮纠偏后不再拍照验证 (如需验证把 max_rounds 当检查轮理解即可)
+    max_rounds=0: 只拍照解算写残余误差 JSON, 不纠偏。
     """
     ref_path = load_reference(ref_path)
 
-    print(f"=== 开始纠偏 (最多 {max_rounds} 次拍照) ===")
     own_g2 = G2 is None
     if own_g2:
         G2 = Minth.G2()
 
     results = []
     try:
+        if max_rounds <= 0:
+            # 只拍照记录模式: 拍一张 → 解算 → 写残余误差 JSON, 不执行任何纠偏
+            print("=== 只拍照记录模式 (不纠偏) ===")
+            r = take_photo_and_solve(G2, "measure", "记录", ref_path)
+            if r is not None:
+                write_residual(r, ref_path, converged=False)
+                results.append(r)
+            return results
+
+        print(f"=== 开始纠偏 (最多 {max_rounds} 次拍照) ===")
         for i in range(1, max_rounds + 1):
             print(f"\n━━━ 第 {i}/{max_rounds} 次拍照 ━━━")
             r, converged = step_move(G2, ref_path, i)

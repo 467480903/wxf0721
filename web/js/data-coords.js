@@ -1,5 +1,5 @@
 // data-coords.js
-// 坐标点位数据管理页面：读取、更新、删除
+// 坐标点位数据管理页面：读取、到位（末端姿态运动）、更新、删除
 // 只处理 positions 数据，不处理关节和地图点位
 
 import { mqttClient } from './mqtt-client.js';
@@ -40,7 +40,8 @@ export default {
         <div class="djc-actionbar">
             <div class="djc-left-info">
                 <span v-if="items.length > 0" class="djc-count-bar">共 {{ items.length }} 条</span>
-                <span v-if="selectedItem" class="djc-sel-info">
+                <span v-if="statusMsg" class="djc-sel-info">{{ statusMsg }}</span>
+                <span v-else-if="selectedItem" class="djc-sel-info">
                     选中: 坐标 · {{ selectedItem.type }} · {{ selectedItem.name }}
                 </span>
             </div>
@@ -74,6 +75,7 @@ export default {
         return {
             items: [],          // 只保留 category === 'positions' 的条目
             selectedIdx: -1,
+            statusMsg: '',
             confirmDialog: {
                 visible: false,
                 title: '',
@@ -101,11 +103,20 @@ export default {
         summarize(item) {
             const v = item.value;
             if (!v) return '-';
-            if (typeof v === 'object') {
-                const keys = Object.keys(v);
-                return `${keys.length} 项: ${keys.slice(0, 3).join(', ')}${keys.length > 3 ? '...' : ''}`;
+            // both 类型：value = {left: {...}, right: {...}}
+            if (item.type === 'both' && v.left && v.right) {
+                return `左 (${fmt(v.left)}) / 右 (${fmt(v.right)})`;
             }
-            return String(v);
+            return fmt(v);
+
+            function fmt(p) {
+                if (!p || typeof p !== 'object') return '-';
+                const n = k => {
+                    const val = Number(p[k]);
+                    return Number.isFinite(val) ? val.toFixed(2) : '-';
+                };
+                return `x=${n('x')}, y=${n('y')}, z=${n('z')}`;
+            }
         },
         onDataResp(data) {
             if (data && data.command === 'response' && Array.isArray(data.data)) {
@@ -113,6 +124,24 @@ export default {
                 this.items = data.data.filter(it => it.category === 'positions');
                 this.selectedIdx = -1;
                 console.log('[坐标数据] 收到', this.items.length, '条数据');
+            }
+        },
+        // 到位/更新执行结果（来自 /humanoid/positions/data）
+        onPositionsData(data) {
+            if (!data || !data.command || !data.data) return;
+            const d = data.data;
+            if (data.command === 'goto_result') {
+                this.statusMsg = d.success
+                    ? `✓ 坐标 ${d.name} 已到位`
+                    : `✗ 坐标 ${d.name} ${d.message || '运动失败'}`;
+            } else if (data.command === 'update_result') {
+                this.statusMsg = d.success
+                    ? `✓ 坐标 ${d.name} 已更新为当前位姿`
+                    : `✗ 坐标 ${d.name} ${d.message || '更新失败'}`;
+                if (d.success) {
+                    // 更新成功后重新读取刷新页面
+                    setTimeout(() => this.readData(), 500);
+                }
             }
         },
         showConfirm(title, message, icon, iconClass, confirmClass, action) {
@@ -151,9 +180,13 @@ export default {
         doGoTo() {
             const item = this.selectedItem;
             if (!item) return;
-            // 坐标运动服务端尚未实现
-            console.log('[坐标数据] 坐标运动尚未实现', item.type, item.name);
-            alert('坐标运动服务端尚未实现');
+            // 到位：末端运动到数据库中的位姿（走 positions 控制通道）
+            this.statusMsg = `末端运动中: ${item.name}...`;
+            mqttClient.publishPositionsControl('goto', {
+                type: item.type,
+                name: item.name,
+            });
+            console.log('[坐标数据] 到位', item.type, item.name);
         },
         confirmUpdate() {
             const item = this.selectedItem;
@@ -170,9 +203,13 @@ export default {
         doUpdate() {
             const item = this.selectedItem;
             if (!item) return;
-            // TODO: 末端位姿获取尚未接入，暂不支持
-            console.log('[坐标数据] 坐标更新尚未实现', item.type, item.name);
-            alert('坐标更新服务端尚未实现');
+            // 更新：后端读取当前末端位姿并覆盖数据库记录
+            this.statusMsg = `更新中: ${item.name}...`;
+            mqttClient.publishPositionsControl('update', {
+                type: item.type,
+                name: item.name,
+            });
+            console.log('[坐标数据] 更新', item.type, item.name);
         },
         confirmDelete() {
             const item = this.selectedItem;
@@ -201,10 +238,12 @@ export default {
     },
     mounted() {
         mqttClient.addDataRespCallback(this.onDataResp);
+        mqttClient.addPositionsDataCallback(this.onPositionsData);
         // 自动读取一次
         this.readData();
     },
     beforeUnmount() {
         mqttClient.removeDataRespCallback(this.onDataResp);
+        mqttClient.removePositionsDataCallback(this.onPositionsData);
     }
 };

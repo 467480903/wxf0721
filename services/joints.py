@@ -10,12 +10,11 @@ joints.py — 关节组件
      - joint：单关节增量微调或运动到指定角度
 
   2. 数据持久化（接收 /humanoid/joints/save 命令）
-     - save_joints：保存关节角到 datas/joints/{type}/{name}.json
-     - save_position：保存末端位姿到 datas/positions/{type}/{name}.json
+     - save_joints：保存关节角到数据库
+     - update / delete：更新或删除指定关节数据
 
   3. 数据读取（通过 /humanoid/joints/data 发布）
-     - read：扫描 datas/ 目录，发布所有关节数据和位姿数据列表
-     - update / delete：更新或删除指定数据文件
+     - read：扫描数据库，发布所有关节数据和位姿数据列表
 
 消息格式（/humanoid/joints/control，订阅）：
   {"command": "WBC", "data": "hold"}                       # 加载 datas/joints/WBC/hold.json
@@ -24,7 +23,6 @@ joints.py — 关节组件
 
 消息格式（/humanoid/joints/save，订阅）：
   {"command": "save_joints", "type": "WBC", "name": "hold", "data": {...}}
-  {"command": "save_position", "type": "left", "name": "pick", "data": {...}}
   {"command": "read"}
   {"command": "update", "category": "joints", "type": "WBC", "name": "hold", "data": {...}}
   {"command": "delete", "category": "joints", "type": "WBC", "name": "hold"}
@@ -65,8 +63,6 @@ ARM_SPEED = 0.2
 
 # 关节类型目录（datas/joints/ 下的子目录名）
 JOINT_TYPES = ["WBC", "arms", "left", "right", "head", "waist"]
-# 位姿类型目录（datas/positions/ 下的子目录名）
-POSITION_TYPES = ["left", "right", "both"]
 
 
 # ═══════════════════════════════════════════════════════════
@@ -315,8 +311,6 @@ def handle_save(payload):
 
     if cmd == "save_joints":
         _save_joints(payload)
-    elif cmd == "save_position":
-        _save_position(payload)
     elif cmd == "read":
         _handle_read()
     elif cmd == "update":
@@ -347,24 +341,6 @@ def _save_joints(msg):
     print(f"  [保存] 关节角已保存到数据库: {save_type}/{save_name} ({len(joints)} 个关节)")
 
 
-def _save_position(msg):
-    """保存末端位姿到数据库
-
-    msg: {"type": "left"/"right"/"both", "name": "pick",
-          "data": {"x":0.1, "y":0.2, "z":0.3, "rx":0, "ry":0, "rz":0}}
-    both 时 data = {"left": {...}, "right": {...}}
-    """
-    save_type = msg.get("type", "both")
-    save_name = msg.get("name", "unnamed")
-    pos_data = msg.get("data", {})
-    if not isinstance(pos_data, dict):
-        print(f"  [保存] data 不是字典: {type(pos_data)}")
-        return
-
-    db.save_positions(save_type, save_name, pos_data)
-    print(f"  [保存] 末端位姿已保存到数据库: {save_type}/{save_name}")
-
-
 # ═══════════════════════════════════════════════════════════
 #  数据读取 / 更新 / 删除
 # ═══════════════════════════════════════════════════════════
@@ -385,11 +361,13 @@ def _handle_read():
 
 
 def _handle_update(msg):
-    """处理 update 命令：更新数据库中的指定数据
+    """处理 update 命令：更新关节数据
 
-    msg: {category: joints/positions, type: WBC, name: hold, data: {...}}
+    msg: {category: joints, type: WBC, name: hold, data: {...}}
     """
     category = msg.get("category", "joints")
+    if category == "positions":
+        return  # positions 类由 positions.py 处理
     update_type = msg.get("type", "WBC")
     update_name = msg.get("name", "unnamed")
     data = msg.get("data", {})
@@ -399,11 +377,13 @@ def _handle_update(msg):
 
 
 def _handle_delete(msg):
-    """处理 delete 命令：删除数据库中的指定数据
+    """处理 delete 命令：删除关节数据
 
-    msg: {category: joints/positions, type: WBC, name: hold}
+    msg: {category: joints, type: WBC, name: hold}
     """
     category = msg.get("category", "joints")
+    if category == "positions":
+        return  # positions 类由 positions.py 处理
     del_type = msg.get("type", "WBC")
     del_name = msg.get("name", "")
 
