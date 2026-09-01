@@ -4,6 +4,7 @@
     python test.py --size 97
     python test.py --size 97 --spacing 730        # 给实测值, 精度更高
     python test.py --size 97 --name A             # 命名基准
+    python test.py --size 97 --image /path/x.jpg  # 用已有图片, 不拍照
 
 间距不传则自动标定 (单码 PnP 测双码中心欧氏距离)。
 基准存 references/ref_<name>_<时间戳>.json, 并更新软链 reference_<name>.json → 最新。
@@ -38,6 +39,8 @@ def parse_args():
                    help="两码中心距 mm (实测值, 不传则自动标定)")
     p.add_argument("--name", type=str, default=None,
                    help="基准名称前缀 (可选, 默认只用 id+时间)")
+    p.add_argument("--image", type=str, default=None,
+                   help="直接用已有图片路径 (不拍照)")
     return p.parse_args()
 
 
@@ -45,22 +48,29 @@ args = parse_args()
 marker_size_mm = args.size
 spacing_mm = args.spacing
 name = args.name
+image_arg = args.image
 
 print(f"=== 采集基准 ===")
 print(f"  码边长={marker_size_mm}mm, 间距={'自动' if spacing_mm is None else spacing_mm}")
 
-# 1. 拍照
-print("=== 拍照 ===")
-G2 = Minth.G2()
-img_path = None
-try:
-    img_path = capture_head_color(G2)
-    if img_path is None:
-        print("[错误] 拍照失败")
+# 1. 取图: --image 跳过拍照
+if image_arg is not None:
+    if not os.path.isfile(image_arg):
+        print(f"[错误] 图片不存在: {image_arg}")
         sys.exit(1)
-    print(f"[拍照] {img_path}")
-finally:
-    G2.close()
+    img_path = image_arg
+    print(f"[图片] {img_path}")
+else:
+    print("=== 拍照 ===")
+    G2 = Minth.G2()
+    try:
+        img_path = capture_head_color(G2)
+        if img_path is None:
+            print("[错误] 拍照失败")
+            sys.exit(1)
+        print(f"[拍照] {img_path}")
+    finally:
+        G2.close()
 
 # 2. 先解算拿到码 ID, 再按 id+时间命名
 ts = datetime.now().strftime("%Y%m%d_%H%M%S")

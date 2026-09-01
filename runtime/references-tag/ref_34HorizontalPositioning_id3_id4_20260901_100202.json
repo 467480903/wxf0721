@@ -1,0 +1,26 @@
+{
+  "name": "34HorizontalPositioning_id3_id4_20260901_100202",
+  "marker_size_mm": 97.0,
+  "marker_spacing_mm": 576.127962007716,
+  "spacing_source": "measured",
+  "target_ids": [
+    3,
+    4
+  ],
+  "left_marker_id": 3,
+  "right_marker_id": 4,
+  "tvec": [
+    96.90008906169098,
+    323.6381983042821,
+    714.8246375276829
+  ],
+  "rvec": [
+    1.5012937567493314,
+    -1.5077693733598347,
+    0.9919704025443271
+  ],
+  "image_width": 1280,
+  "image_height": 800,
+  "dict": "tag36h11",
+  "reprojection_error_px": 0.7980845507456045
+}

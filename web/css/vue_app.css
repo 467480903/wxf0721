@@ -2144,6 +2144,59 @@ hr {
     background: rgba(255,255,255,0.45);
 }
 
+/* 可滚动表格容器 */
+.mv-table-scroll {
+    flex: 1;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* 底部操作栏 */
+.mv-actionbar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: #fff;
+    border-top: 1px solid #ebeef5;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+}
+.mv-left-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: #606266;
+}
+.mv-count-bar {
+    background: #ecf5ff;
+    color: #409eff;
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+.mv-sel-info { color: #909399; }
+.mv-actions { display: flex; gap: 8px; }
+.mv-btn {
+    padding: 6px 18px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.2s, transform 0.1s;
+}
+.mv-btn:active { transform: scale(0.96); }
+.mv-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.mv-btn-read  { background: #409eff; color: #fff; }
+.mv-btn-read:hover:not(:disabled)  { background: #66b1ff; }
+.mv-btn-edit  { background: #e6a23c; color: #fff; }
+.mv-btn-edit:hover:not(:disabled)  { background: #ebb563; }
+
 .mv-table {
     width: 100%;
     border-collapse: collapse;

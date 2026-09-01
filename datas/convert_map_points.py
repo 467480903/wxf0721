@@ -16,8 +16,8 @@ convert_map_points.py — 从 G2 机器人当前地图导出点位到 SQLite
     python3 convert_map_points.py
 
 说明：
-  - source 固定为 "map"，与 chassis_controller 的点位来源标记一致
-  - 同名点位（同年月日-序号）重复运行时按"更新"处理（幂等）
+  - source 固定为 "local"，与数据库现有数据保持一致
+  - 每次运行先清空 map_points 表，再全部新增插入
   - 若 humanoid 服务（services/main.py）正在运行，其内存数据库
     在下次写操作时会整体回写覆盖 robot_data.db；本脚本跑完后
     建议重启服务，或先停服务再跑本脚本。
@@ -39,7 +39,7 @@ ENV_SH    = "/home/agi/app/env.sh"
 GDK_LIB   = "/home/agi/app/gdk/lib"
 DATA_DIR  = os.path.dirname(os.path.abspath(__file__))
 DB_PATH   = os.path.join(DATA_DIR, "robot_data.db")
-SOURCE    = "map"
+SOURCE    = "local"
 
 # 延迟持有，避免 import 本模块（如测试）就要求 GDK 就绪
 _GDK = None
@@ -109,7 +109,7 @@ def load_map_points():
 
 
 def insert_to_db(points):
-    """将点位插入 robot_data.db 的 map_points 表
+    """清空 map_points 表后，将点位全部新增插入
 
     命名规则：年月日-点位序号（如 20260821-1）
     """
@@ -130,33 +130,27 @@ def insert_to_db(points):
         )
     """)
 
-    inserted, updated = 0, 0
+    # 清空 map_points 表
+    cur.execute("DELETE FROM map_points")
+    print(f"  已清空 map_points 表")
+
+    # 全部新增插入
+    inserted = 0
     for p in points:
         name = f"{date_tag}-{p['index']}"
         pos_json = json.dumps(p["position"], ensure_ascii=False)
         ori_json = json.dumps(p["orientation"], ensure_ascii=False)
-
-        cur.execute(
-            "SELECT 1 FROM map_points WHERE name=? AND source=?", (name, SOURCE)
-        )
-        exists = cur.fetchone() is not None
-
         cur.execute(
             "INSERT INTO map_points (name, source, position, orientation) "
-            "VALUES (?, ?, ?, ?) "
-            "ON CONFLICT(name, source) DO UPDATE SET "
-            "position=excluded.position, orientation=excluded.orientation",
+            "VALUES (?, ?, ?, ?)",
             (name, SOURCE, pos_json, ori_json)
         )
-        if exists:
-            updated += 1
-        else:
-            inserted += 1
+        inserted += 1
 
     conn.commit()
     conn.close()
-    print(f"  新增 {inserted} 条，更新 {updated} 条")
-    return inserted, updated
+    print(f"  新增 {inserted} 条")
+    return inserted
 
 
 def main():
@@ -169,7 +163,7 @@ def main():
         print("[提示] 当前地图没有导航点，结束")
         return
 
-    inserted, updated = insert_to_db(points)
+    inserted = insert_to_db(points)
 
     date_tag = datetime.now().strftime("%Y%m%d")
     print("[3/3] 结果预览：")
@@ -181,7 +175,7 @@ def main():
 
     print()
     print(f"完成：地图 id={map_id}，{len(points)} 个点位 "
-          f"（新增 {inserted}，更新 {updated}）")
+          f"（清空后新增 {inserted} 条）")
     print("注意：若 humanoid 服务正在运行，请重启服务以加载新数据"
           "（服务内存库会整体回写覆盖本文件）")
 

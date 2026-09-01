@@ -1,11 +1,11 @@
 {
   "model_path": "shelf.pt",
-  "image_path": "/home/wxf/yolo/detect_output/20260901_104616/rgb.png",
-  "depth_raw_path": "/home/wxf/yolo/detect_output/20260901_104616/depth.raw",
+  "image_path": "/home/wxf/yolo/detect_output/20260901_102555/rgb.png",
+  "depth_raw_path": "/home/wxf/yolo/detect_output/20260901_102555/depth.raw",
   "depth_offset_px": 12,
   "depth_shape": [
-    800,
-    1280
+    400,
+    640
   ],
   "image_size": {
     "height": 800,
@@ -15,49 +15,49 @@
     "point1": {
       "label": "a",
       "center": [
-        624.53,
-        578.17
+        1038.04,
+        571.47
       ]
     },
     "point2": {
-      "label": "b",
+      "label": "a",
       "center": [
-        1062.58,
-        578.75
+        606.78,
+        572.75
       ]
     }
   },
   "offset": {
     "line_center": [
-      843.55,
-      578.46
+      822.41,
+      572.11
     ],
     "image_center_x": 640.0,
-    "horizontal_offset_px": 203.55,
+    "horizontal_offset_px": 182.41,
     "direction": "偏右"
   },
   "slope": {
-    "slope": 0.0013,
-    "angle_rad": 0.0013,
-    "angle_deg": 0.1
+    "slope": -0.003,
+    "angle_rad": 3.1386,
+    "angle_deg": 179.8
   },
   "depth": {
-    "point1_center_mm": 613.0,
-    "point1_left_offset_mm": 617.0,
+    "point1_center_mm": -1.0,
+    "point1_left_offset_mm": -1.0,
     "point1_left_sample_pixel": [
-      624,
-      590
+      1038,
+      583
     ],
-    "point2_center_mm": 679.0,
-    "point2_right_offset_mm": 681.5384615384615,
+    "point2_center_mm": 3239.0,
+    "point2_right_offset_mm": 1745.75,
     "point2_right_sample_pixel": [
-      1062,
-      590
+      606,
+      584
     ],
-    "center_mm": 1408.0987654320988,
+    "center_mm": 1879.0735294117646,
     "center_sample_pixel": [
-      843,
-      578
+      822,
+      572
     ]
   },
   "output_files": [

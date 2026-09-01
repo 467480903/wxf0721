@@ -102,7 +102,7 @@ const App = {
 
         <nav id="toolbar" @click.stop>
             <span class="brand" @click="toggleHome">
-                底盘机器人
+                人形底盘机器人
             </span>
 
             <template v-for="m in visibleMenus" :key="m.id">
@@ -243,7 +243,7 @@ const App = {
             }
         },
         toggleHome() {
-            // 点击「底盘机器人」logo，收起所有功能页，显示 3D 模型
+            // 点击「人形底盘机器人」logo，收起所有功能页，显示 3D 模型
             this.currentMenu = '';
             this.openDropdown = '';
         },

@@ -105,6 +105,27 @@ class _RobotBase:
     # 关节命令集合（发送到 /humanoid/joints/control）
     _JOINT_CMDS = {"WBC", "arms", "left", "right", "head", "waist", "joint"}
 
+    def DONE(self, message=None):
+        """向 /humanoid/commands/done 发送执行完成信号
+
+        与后端 services 的 done 消息格式一致（{"command":"done"}）。
+        可用于自定义脚本结束时通知等待方。
+
+        Args:
+            message: 可选，附加信息，如 "program_finished"
+        Returns:
+            bool: True=信号已成功发出，False=发送失败
+        """
+        payload = {"command": "done"}
+        if message is not None:
+            payload["message"] = str(message)
+        msg_str = json.dumps(payload, ensure_ascii=False)
+        info = self._client.publish(DONE_TOPIC, msg_str, qos=2)
+        ok = getattr(info, "rc", 0) == 0
+        print(f"[Minth] → done 信号已发送"
+              f"{'' if ok else ' [发送失败]'}")
+        return ok
+
     def _send_and_wait(self, cmd, data=None):
         """发送命令并等待 DONE_TOPIC 回复或超时
 
@@ -156,6 +177,25 @@ class G2(_RobotBase):
             bool: True=执行完成，False=超时
         """
         return self._send_and_wait("go", num)
+
+    def GO_NOWAIT(self, num):
+        """导航到指定地图点位（异步，不等待执行完成）
+
+        命令下发后立即返回，不等待 /humanoid/commands/done 回复。
+        适用于 fire-and-forget 场景。
+
+        Args:
+            num: 导航点索引（整数），如 9
+        Returns:
+            bool: True=命令已成功下发，False=发送失败
+        """
+        payload = {"command": "go", "data": num}
+        msg_str = json.dumps(payload, ensure_ascii=False)
+        info = self._client.publish(COMMANDS_TOPIC, msg_str, qos=2)
+        ok = getattr(info, "rc", 0) == 0
+        print(f"[Minth] → go (nowait): {num}"
+              f"{'' if ok else ' [发送失败]'}")
+        return ok
 
     def WBC(self, name):
         """全身关节运动
@@ -236,6 +276,26 @@ class G2(_RobotBase):
             bool
         """
         return self._send_and_wait("go_rel", data)
+
+    def REL_NOWAIT(self, data):
+        """底盘相对运动（异步，不等待执行完成）
+
+        命令下发后立即返回，不等待 /humanoid/commands/done 回复。
+        适用于 fire-and-forget 场景，例如 CHASSIS_CORRECT 纠偏后
+        立即返回继续后续逻辑。
+
+        Args:
+            data: dict，单位米，同 REL
+        Returns:
+            bool: True=命令已成功下发，False=发送失败
+        """
+        payload = {"command": "go_rel", "data": data}
+        msg_str = json.dumps(payload, ensure_ascii=False)
+        info = self._client.publish(COMMANDS_TOPIC, msg_str, qos=2)
+        ok = getattr(info, "rc", 0) == 0
+        print(f"[Minth] → go_rel (nowait): {data}"
+              f"{'' if ok else ' [发送失败]'}")
+        return ok
 
     def TTS(self, text):
         """语音播报

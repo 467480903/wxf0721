@@ -78,6 +78,17 @@ def _extract_positions(data, keys):
     return [data.get(key, 0.0) for key in keys]
 
 
+def _get_current_angles(keys):
+    """读取机器人当前关节角（按 keys 顺序），保持不动"""
+    try:
+        states = common.robot.get_joint_states()
+        cur = {s['name']: s['motor_position'] for s in states['states']}
+    except Exception as e:
+        print(f"  [警告] 读取关节角失败，补 0: {e}")
+        return [0.0] * len(keys)
+    return [cur.get(k, 0.0) for k in keys]
+
+
 def _load_joints_data(cmd_type, data):
     """加载关节角数据
 
@@ -125,9 +136,9 @@ def _move_both_arms(pos_data):
 
 
 def _move_left_arm(pos_data):
-    """仅控制左臂运动（右臂补 0）"""
+    """仅控制左臂运动（右臂保持当前角度）"""
     left = _extract_positions(pos_data, LEFT_ARM_JOINT_KEYS)
-    right = [0.0] * len(RIGHT_ARM_JOINT_KEYS)
+    right = _get_current_angles(RIGHT_ARM_JOINT_KEYS)
     positions = left + right
     velocities = [ARM_SPEED] * len(positions)
     print(f"  左臂 → {[f'{p:.3f}' for p in left]}")
@@ -135,8 +146,8 @@ def _move_left_arm(pos_data):
 
 
 def _move_right_arm(pos_data):
-    """仅控制右臂运动（左臂补 0）"""
-    left = [0.0] * len(LEFT_ARM_JOINT_KEYS)
+    """仅控制右臂运动（左臂保持当前角度）"""
+    left = _get_current_angles(LEFT_ARM_JOINT_KEYS)
     right = _extract_positions(pos_data, RIGHT_ARM_JOINT_KEYS)
     positions = left + right
     velocities = [ARM_SPEED] * len(positions)
@@ -249,14 +260,14 @@ def handle_joint_single(data, msg=None):
         left = [current_angles.get(k, 0.0) for k in keys]
         idx = keys.index(joint_name) if joint_name in keys else 0
         left[idx] = target
-        right = [0.0] * len(RIGHT_ARM_JOINT_KEYS)
+        right = [current_angles.get(k, 0.0) for k in RIGHT_ARM_JOINT_KEYS]
         common.robot.move_arm_joint(left + right, [ARM_SPEED] * (len(left) + len(right)), 2)
     elif joint_name.startswith("idx6"):     # right arm
         keys = RIGHT_ARM_JOINT_KEYS
         right = [current_angles.get(k, 0.0) for k in keys]
         idx = keys.index(joint_name) if joint_name in keys else 0
         right[idx] = target
-        left = [0.0] * len(LEFT_ARM_JOINT_KEYS)
+        left = [current_angles.get(k, 0.0) for k in LEFT_ARM_JOINT_KEYS]
         common.robot.move_arm_joint(left + right, [ARM_SPEED] * (len(left) + len(right)), 2)
     else:
         print(f"[关节] 未知关节名前缀: {joint_name}")

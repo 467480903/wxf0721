@@ -3,39 +3,45 @@ import time
 import cv2
 from capture import capture_head_color
 from aruco import *
+from positioning import positioning as pt
+
 
 MAP_POS_Home = 2
 MAP_POS_GetCar = 1
 MAP_POS_GetWorkpiece = 0
-MAP_POS_PutBig = 9
-MAP_POS_PutSmall = 9
+MAP_POS_PutBig = 4
+MAP_POS_PutSmall = 6
 
 
 G2 = Minth.G2()
 
 def putA():
     G2.ARMS("a3")
-    G2.GO(4)
+    # G2.GO(5)
+    G2.ARMS("a5")
+    G2.REL({"x": -1.7,"y": -1.7}) 
     G2.GO(MAP_POS_PutSmall)
+    pt("/data/wxf/wxf0721/runtime/references-tag/reference_id5_id6.json",G2=G2)
+    G2.WBC("xx")
 
-
-    G2.WBC("W2")
     while True:
         img_path = capture_head_color(G2)
         img = cv2.imread(img_path)
         if img.shape[:2] != (400, 640):
             img = cv2.resize(img, (640, 400))
-        result = analyze_top_workpiece(img,(0,200,450,img.shape[0]-200))
+        result = analyze_top_workpiece(img,(0,215,440,img.shape[0]-215))
         if result == 0:
             break
         else:
             G2.TTS("ワークが取り除かれるのを待機；等待工件拿开")
             time.sleep(5)
 
+    G2.WBC("W2.3")
+    G2.WBC("W2")
     G2.WBC("W3")
-    G2.WBC("W4")
-    G2.WBC("W5")
     G2.GRIPPER({"right": -0.1})
+    G2.WBC("W4")
+    # G2.WBC("W5")
     G2.WBC("W6")    #塞入！！！！！！！！！！！！！！！！！！！！！！！！！
     G2.GRIPPER({"right": -0.2})
     G2.WBC("W7")
@@ -52,7 +58,7 @@ def putBig():
     G2.GO(3)
     G2.GO(MAP_POS_PutBig)
 
-    positioning("/data/wxf/wxf0721/runtime/references-tag/reference_3-4.json",G2=G2)
+    pt("/data/wxf/wxf0721/runtime/references-tag/reference_id3_id4.json",G2=G2)
     
     G2.WBC("xx")
 
@@ -61,7 +67,7 @@ def putBig():
         img = cv2.imread(img_path)
         if img.shape[:2] != (400, 640):
             img = cv2.resize(img, (640, 400))
-        result = analyze_top_workpiece(img,(610,410,img.shape[1]-610,img.shape[0]-410))
+        result = analyze_top_workpiece(img,(305,205,img.shape[1]-305,img.shape[0]-205))
         if result == 0:
             break
         else:
@@ -87,7 +93,7 @@ def car_move():
     G2.WBC("Wdown2")
     G2.GO(MAP_POS_GetCar)
     G2.GRIPPER({"left": -0.7, "right": -0.7})
-    positioning("/data/wxf/wxf0721/runtime/references-tag/reference_id1_id2.json", G2=G2)#max_rounds:4
+    positioning("/data/wxf/wxf0721/runtime/references-tag/reference_id1_id2.json", G2=G2,max_rounds=4)
     G2.ARMS("car3")
     G2.ARMS("car3.1")
     G2.ARMS("car5")
@@ -182,10 +188,10 @@ def release_car():
 
 def main():
     carmove = False
-    G2.TTS("大家好，我将进行焊装工位的上件和更换台车演示，我将把台车拉到夹具旁边。")
+    # G2.TTS("大家好，我将进行焊装工位的上件和更换台车演示，我将把台车拉到夹具旁边。")
     G2.GO(MAP_POS_Home)
     G2.WBC("Wdown2")
-    carmove = car_move()
+    # carmove = car_move()
     get_work(carmove)
     release_car()
     G2.WBC("Wdown2")

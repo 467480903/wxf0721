@@ -7,16 +7,8 @@ export default {
     name: 'SynchroView',
     template: `
     <div class="panel mv-panel">
-        <!-- 统一数据表格 -->
-        <div class="mv-table-block" v-if="mergedRows.length > 0">
-            <div class="mv-block-header mv-read-header">
-                <span class="mv-block-icon">📋</span> 同步数据
-                <div class="mv-block-actions">
-                    <button class="mv-small-btn mv-small-btn-edit"
-                            :disabled="selectedRowKey === null"
-                            @click="openEditDialog">修改</button>
-                </div>
-            </div>
+        <!-- 可滚动数据表格 -->
+        <div class="mv-table-scroll" v-if="mergedRows.length > 0">
             <table class="mv-table">
                 <thead>
                     <tr>
@@ -46,6 +38,20 @@ export default {
         </div>
 
         <div v-else class="mv-no-device">暂无同步数据</div>
+
+        <!-- 底部固定操作栏 -->
+        <div class="mv-actionbar">
+            <div class="mv-left-info">
+                <span v-if="mergedRows.length > 0" class="mv-count-bar">共 {{ mergedRows.length }} 条</span>
+                <span v-if="selectedRow" class="mv-sel-info">
+                    选中: {{ selectedRow.type === 'read' ? '读' : '写' }} · {{ selectedRow.deviceName }} · {{ selectedRow.name }}
+                </span>
+            </div>
+            <div class="mv-actions">
+                <button class="mv-btn mv-btn-read" @click="refreshData">刷新</button>
+                <button class="mv-btn mv-btn-edit" :disabled="!canEdit" @click="openEditDialog">修改</button>
+            </div>
+        </div>
 
         <!-- 修改值弹窗 -->
         <div v-if="editDialog.visible" class="save-overlay" @click.self="closeEditDialog">
@@ -106,6 +112,14 @@ export default {
     computed: {
         deviceList() {
             return Object.values(this.devices);
+        },
+        selectedRow() {
+            if (this.selectedRowKey === null) return null;
+            return this.mergedRows.find(r => r.key === this.selectedRowKey) || null;
+        },
+        canEdit() {
+            const row = this.selectedRow;
+            return row && row.type === 'write';
         },
         mergedRows() {
             const rows = [];
@@ -201,11 +215,14 @@ export default {
         selectRow(row) {
             this.selectedRowKey = this.selectedRowKey === row.key ? null : row.key;
         },
+        refreshData() {
+            mqttClient.publishModbusControl('read');
+            console.log('[同步] 已请求刷新');
+        },
 
         // ── 修改值 ──
         openEditDialog() {
-            if (this.selectedRowKey === null) return;
-            const row = this.mergedRows.find(r => r.key === this.selectedRowKey);
+            const row = this.selectedRow;
             if (!row || row.type !== 'write') return;
             this.editDialog = {
                 visible: true,
@@ -243,6 +260,8 @@ export default {
                 });
             }
             this.editDialog.visible = false;
+            // 写入后稍等再刷新，确保读到最新值
+            setTimeout(() => mqttClient.publishModbusControl('read'), 500);
         }
     },
     mounted() {
