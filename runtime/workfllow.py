@@ -4,6 +4,8 @@ import cv2
 from capture import capture_head_color
 from aruco import *
 from positioning import positioning as pt
+import paho.mqtt.client as mqtt
+import put 
 
 
 MAP_POS_Home = 2
@@ -14,6 +16,13 @@ MAP_POS_PutSmall = 6
 
 
 G2 = Minth.G2()
+
+def playMp3(mp3="/playMP3"):
+    # 往 localhost:1883 /playMP3 发送 MP3 播放命令
+    _mqtt = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="bbbb_mp3")
+    _mqtt.connect("localhost", 1883)
+    _mqtt.loop_start()
+    _mqtt.publish(mp3, json.dumps({"cmd": "play", "file": "JPCH1.mp3"}), qos=0)
 
 def putA():
     G2.ARMS("a3")
@@ -33,7 +42,8 @@ def putA():
         if result == 0:
             break
         else:
-            G2.TTS("ワークが取り除かれるのを待機；等待工件拿开")
+            playMp3()
+            # G2.TTS("ワークが取り除かれるのを待機；等待工件拿开")
             time.sleep(5)
 
     G2.WBC("W2.3")
@@ -52,11 +62,29 @@ def putA():
     G2.WBC("W10") 
 
 def UpPutBig():
-    G2.ARMS("a3")
+    # G2.ARMS("a3")
     # G2.GO(3)
     G2.WBC("xx")
-    G2.GO(MAP_POS_PutBig)
-    pt("/data/wxf/wxf0721/runtime/references-tag/ref_id3_id4_20260901_133511.json",G2=G2)
+    # G2.GO(MAP_POS_PutBig)
+    results = pt("/data/wxf/wxf0721/runtime/references-tag/ref_id3_id4_20260901_133511.json",G2=G2)
+    _res = results[-1]
+    offestX = -_res["dt"][0]
+    offestY = -_res["dt"][1]+8
+    G2.ARMS("big1")
+    G2.ARMS("big2")
+    G2.ARMS("big3")
+    G2.MoveL("big4", {"x": offestX, "y": offestY})
+    G2.MoveL("big6", {"x": offestX, "y": offestY})
+    G2.GRIPPER({"right": -0.1})
+    # G2.GRIPPER({"right": -0.2})
+    G2.MoveL("big7", {"x": offestX, "y": offestY})
+    G2.GRIPPER({"right": -0.4})
+    G2.MoveL("big8", {"x": offestX, "y": offestY})
+    G2.GRIPPER({"right": -0.7})
+    # G2.ARMS("big9")
+    G2.ARMS("big10")
+    G2.ARMS("big11")
+
     
 def putBig():
     G2.ARMS("a3")
@@ -75,7 +103,8 @@ def putBig():
         if result == 0:
             break
         else:
-            G2.TTS("ワークが取り除かれるのを待機；等待工件拿开")
+            playMp3()
+            # G2.TTS("ワークが取り除かれるのを待機；等待工件拿开")
             time.sleep(5)
 
     G2.WBC("x2")
@@ -133,13 +162,16 @@ def get_work(carmove = False):
 
         jj="ref_id11_20260828_152155.json"
         if result == 0:
-            G2.TTS("ワークなし；无工件")
+            playMp3()
+            # G2.TTS("ワークなし；无工件")
             break
         elif result == 1:
-            G2.TTS("これは大きな部品だ；这是大工件")
+            playMp3()
+            # G2.TTS("これは大きな部品だ；这是大工件")
             jj="ref_id10_20260828_152036.json"
         elif result == 2:
-            G2.TTS("これは小さな部品です；这是小工件")
+            playMp3()
+            # G2.TTS("これは小さな部品です；这是小工件")
 
         pose = f'r{i}'
         G2.ARMS(pose)
@@ -162,11 +194,12 @@ def get_work(carmove = False):
         #         break
 
         if result == 1:
-            putBig()
+            put.putBig(G2)
         elif result == 2:
-            putA()
+            put.putSmall(G2)
         else:
-            G2.TTS("ワークなし；无工件")
+            playMp3()
+            # G2.TTS("ワークなし；无工件")
             break
         
         G2.ARMS("AWait")
@@ -192,6 +225,7 @@ def release_car():
 
 def main():
     carmove = False
+    playMp3()
     # G2.TTS("大家好，我将进行焊装工位的上件和更换台车演示，我将把台车拉到夹具旁边。")
     G2.GO(MAP_POS_Home)
     G2.WBC("Wdown2")
@@ -200,7 +234,8 @@ def main():
     release_car()
     G2.WBC("Wdown2")
     G2.GO(MAP_POS_Home)
-    G2.TTS("整体的展示完成了，谢谢参观。ご覧いただきありがとうございました。")
+    playMp3()
+    # G2.TTS("整体的展示完成了，谢谢参观。ご覧いただきありがとうございました。")
     G2.close()
 
 if __name__ == "__main__":

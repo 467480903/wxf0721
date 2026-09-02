@@ -46,8 +46,16 @@ export default {
                 <!-- 左手夹爪 -->
                 <div class="gripper-row">
                     <span class="gripper-label">夹爪</span>
-                    <button class="gripper-btn open" @click="gripper('left', 'open')">张开</button>
-                    <button class="gripper-btn close" @click="gripper('left', 'close')">闭合</button>
+                    <div class="gripper-slider-wrap">
+                        <span class="gripper-end-label">开</span>
+                        <input type="range"
+                               class="gripper-slider"
+                               min="-0.75" max="0" step="0.01"
+                               v-model.number="leftGripper"
+                               @change="setGripper('left', leftGripper)" />
+                        <span class="gripper-end-label">合</span>
+                        <span class="gripper-val">{{ formatGripper(leftGripper) }}</span>
+                    </div>
                 </div>
             </div>
 
@@ -63,8 +71,16 @@ export default {
                 <!-- 右手夹爪 -->
                 <div class="gripper-row">
                     <span class="gripper-label">夹爪</span>
-                    <button class="gripper-btn open" @click="gripper('right', 'open')">张开</button>
-                    <button class="gripper-btn close" @click="gripper('right', 'close')">闭合</button>
+                    <div class="gripper-slider-wrap">
+                        <span class="gripper-end-label">开</span>
+                        <input type="range"
+                               class="gripper-slider"
+                               min="-0.75" max="0" step="0.01"
+                               v-model.number="rightGripper"
+                               @change="setGripper('right', rightGripper)" />
+                        <span class="gripper-end-label">合</span>
+                        <span class="gripper-val">{{ formatGripper(rightGripper) }}</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -130,6 +146,8 @@ export default {
             axes: ['x', 'y', 'z', 'rx', 'ry', 'rz'],
             left:  { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 },
             right: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 },
+            leftGripper: -0.75,
+            rightGripper: -0.75,
             // 坐标系
             leftFrame: 'base',
             rightFrame: 'base',
@@ -163,13 +181,14 @@ export default {
             const data = { [key]: value };
             mqttClient.publishCommand('offset_move', data);
         },
-        // 控制夹爪开合
-        gripper(side, action) {
-            // open: -0.7, close: -0.0
-            const pos = action === 'open' ? -0.7 : -0.0;
+        // 设置夹爪开合度（滑动条 @change 触发）
+        setGripper(side, pos) {
             const data = side === 'left' ? { left: pos } : { right: pos };
             mqttClient.publishCommand('grab', data);
-            console.log(`[夹爪] ${side} ${action} (pos=${pos})`);
+            console.log(`[夹爪] ${side} pos=${pos.toFixed(2)}`);
+        },
+        formatGripper(v) {
+            return v.toFixed(2);
         },
         // 从 MQTT 状态刷新末端坐标
         syncFromStatus(status) {

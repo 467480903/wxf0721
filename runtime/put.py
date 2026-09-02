@@ -1,22 +1,4 @@
-from re import X
-
-from minth import Minth
-import time
-
-import json
-import paho.mqtt.client as mqtt
-
-# 往 localhost:1883 /playMP3 发送 MP3 播放命令
-_mqtt = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="bbbb_mp3")
-_mqtt.connect("localhost", 1883)
-_mqtt.loop_start()
-_mqtt.publish("/playMP3", json.dumps({"cmd": "play", "file": "JPCH1.mp3"}), qos=0)
-print("[MP3] 已发送播放命令: JPCH1.mp3")
-
-G2 = Minth.G2()
-G2.YOLO("shelf.pt", "192.168.0.8")
-
-if 2>1 :
+def putBig(G2):
     G2.WBC("xx")
     G2.GO(7)
     G2.ARMS("big1")
@@ -43,13 +25,7 @@ if 2>1 :
     G2.OFFSET({"rx": -80})
     G2.ARMS("big11")
 
-if 2>1 :
-    # G2.GO(10)
-    # G2.GRIPPER({"right": -0.7})
-    # time.sleep(5)
-    # G2.GRIPPER({"right": -0.0})
-    # G2.WBC("xx")
-
+def putSmall(G2):
     G2.GO(9)
     G2.ARMS("big1")
     G2.ARMS("big2")
@@ -70,8 +46,3 @@ if 2>1 :
     G2.GRIPPER({"right": -0.7})
     G2.OFFSET({"rx": -180})
     G2.WBC("xx")
-# G2.GRIPPER({"right": -0.5})
-# G2.JOINT("idx05_body_joint5", offset=-3.14/2/2/2/2)
-# G2.REL({"x": -2.1+0.4, "y": -1.7, "yaw_rad": 0})
-# G2.REL({"x": -0.1})
-# G2.REL({"x": 0.095})

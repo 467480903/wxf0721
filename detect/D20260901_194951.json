@@ -1,7 +1,7 @@
 {
   "model_path": "shelf.pt",
-  "image_path": "/home/wxf/yolo/detect_output/20260901_195215/rgb.png",
-  "depth_raw_path": "/home/wxf/yolo/detect_output/20260901_195215/depth.raw",
+  "image_path": "/home/wxf/yolo/detect_output/20260901_194951/rgb.png",
+  "depth_raw_path": "/home/wxf/yolo/detect_output/20260901_194951/depth.raw",
   "depth_offset_px": 12,
   "depth_shape": [
     800,

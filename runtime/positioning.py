@@ -138,8 +138,8 @@ def step_move(G2, ref_path, step):
             print("[错误] 纠偏失败")
             return None, False
     else:
-        # 后续: 旋转走腰部 (offset 正=右转), 平移走底盘
-        waist_offset = np.radians(dyaw)
+        # 后续: 旋转走腰部 (offset 负=逆时针/左转, 故右转纠偏=负), 平移走底盘
+        waist_offset = -np.radians(dyaw)
         print(f"  [纠偏-腰部] offset={waist_offset:+.4f}rad ({dyaw:+.2f}°), "
               f"x={move_x:+.4f}m, y={move_y:+.4f}m")
         if not confirm_large_move(move_x, move_y, dyaw):

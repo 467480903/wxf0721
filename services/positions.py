@@ -116,33 +116,17 @@ def _publish_result(cmd, name, success, message):
 def _apply_offset(value, offset):
     """对存储格式的位姿值应用偏移，返回新的 value 字典
 
-    offset 中 lx/ly/lz 为毫米，rx/ry/rz 为度（ZYX 欧拉角）
+    offset 只支持 x/y/z 平移偏移，单位毫米
     value 中 x/y/z 为米，rx/ry/rz 为四元数 x/y/z 分量
     """
     result = dict(value)
     # 平移偏移：毫米 → 米，直接加
-    for k, off_key in [("x", "lx"), ("y", "ly"), ("z", "lz")]:
-        if off_key in offset:
+    for k in ("x", "y", "z"):
+        if k in offset:
             try:
-                result[k] = float(result.get(k, 0.0)) + float(offset[off_key]) / 1000.0
+                result[k] = float(result.get(k, 0.0)) + float(offset[k]) / 1000.0
             except (TypeError, ValueError):
                 pass
-    # 旋转偏移：欧拉角(度) → 四元数，左乘到当前姿态
-    has_rot = any(k in offset for k in ("rx", "ry", "rz"))
-    if has_rot:
-        qx, qy, qz = float(result.get("rx", 0.0)), float(result.get("ry", 0.0)), float(result.get("rz", 0.0))
-        w2 = 1.0 - (qx * qx + qy * qy + qz * qz)
-        qw = math.sqrt(w2) if w2 > 0.0 else 0.0
-        q_base = [qx, qy, qz, qw]
-        rx_deg = float(offset.get("rx", 0.0))
-        ry_deg = float(offset.get("ry", 0.0))
-        rz_deg = float(offset.get("rz", 0.0))
-        from EndEffectorController import EndEffectorController as _EEC
-        q_rot = _EEC.euler_to_quaternion(rx_deg, ry_deg, rz_deg)
-        q_new = _EEC.quaternion_multiply(q_rot, q_base)
-        result["rx"] = round(q_new[0], 6)
-        result["ry"] = round(q_new[1], 6)
-        result["rz"] = round(q_new[2], 6)
     return result
 
 
