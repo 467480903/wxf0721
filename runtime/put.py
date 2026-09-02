@@ -1,4 +1,5 @@
 def putBig(G2):
+    G2.GO(6)
     G2.WBC("xx")
     G2.GO(7)
     G2.ARMS("big1")
@@ -24,8 +25,11 @@ def putBig(G2):
     G2.GRIPPER({"right": -0.7})
     G2.OFFSET({"rx": -80})
     G2.ARMS("big11")
+    G2.GO(6)
 
 def putSmall(G2):
+    G2.GO(10)
+    G2.WBC("xx")    
     G2.GO(9)
     G2.ARMS("big1")
     G2.ARMS("big2")
@@ -46,3 +50,4 @@ def putSmall(G2):
     G2.GRIPPER({"right": -0.7})
     G2.OFFSET({"rx": -180})
     G2.WBC("xx")
+    G2.GO(10)
