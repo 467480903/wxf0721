@@ -16,7 +16,21 @@ print("[MP3] 已发送播放命令: JPCH1.mp3")
 G2 = Minth.G2()
 G2.YOLO("shelf.pt", "192.168.0.8")
 
-if 2>1 :
+if 2>3 :
+
+    # G2.GO_NOWAIT(0)
+    G2.REL_NOWAIT({"x": -1.5})
+    
+    G2.TTS("跑到位置0")
+    # G2.WBC("xx")
+    G2.GO(0)
+    time.sleep(2)
+    # G2.GO_NOWAIT(2)
+    G2.REL_NOWAIT({"x": 0.5})
+    G2.TTS("跑到位置2")
+    G2.WBC("A3")
+
+if 2>3 :
     G2.WBC("xx")
     G2.GO(8)
     G2.GRIPPER({"right": -0.7})
@@ -65,34 +79,44 @@ if 2>1 :
     G2.GO(8)
     G2.GO(2)
 
-if 2>3 :
-    G2.GO(10)
-    G2.GRIPPER({"right": -0.7})
-    time.sleep(5)
-    G2.GRIPPER({"right": -0.0})
-    G2.WBC("xx")
+if 2>1 :
 
-    G2.GO(9)
-    G2.ARMS("big1")
-    G2.ARMS("big2")
-    G2.ARMS("big3")
-    G2.ARMS("big4")
-    G2.OFFSET({"rx": 23})
-    G2.OFFSET({"rz": -20})
-    G2.OFFSET({"rz": -20})    
-    G2.OFFSET({"rz": -20})   
-    G2.GRIPPER({"right": -0.1})
-    G2.OFFSET({"ry": -15})      
-    G2.OFFSET({"rz": -20})    
-    G2.OFFSET({"rz": -20})  
-    G2.GRIPPER({"right": -0.2})
-    G2.OFFSET({"rx": -10})    
-    G2.OFFSET({"rz": -20})    
-    G2.OFFSET({"rz": -20})     
-    G2.GRIPPER({"right": -0.7})
-    G2.OFFSET({"rx": -180})
-    G2.WBC("xx")
-    G2.GO(10)
+    # G2.GO(2)
+    # G2.WBC("A3")
+    # G2.GRIPPER({"right": -0.7})
+    # time.sleep(5)
+    # G2.GRIPPER({"right": -0.0})
+    # time.sleep(2)
+    G2.GO_NOWAIT(10)
+    G2.WBC("xx")    
+    # G2.GO(9)
+    # G2.ARMS("big1")
+    # G2.ARMS("big2")
+    # G2.ARMS("big3")
+    # G2.ARMS("big4")
+    # G2.OFFSET({"rx": 31+20+10+10})
+    # G2.OFFSET({"rz": -20})
+    # G2.OFFSET({"rz": -20})    
+    # G2.OFFSET({"rz": -40})   
+    # G2.OFFSET({"rx": -55}) #推出后再拉回
+    # G2.GRIPPER({"right": -0.1})
+    # G2.OFFSET({"rz": -20})    
+    # G2.OFFSET({"rz": -30})     
+    # G2.GRIPPER({"right": -0.3})
+    # G2.OFFSET({"rz": -8})     
+    # G2.OFFSET({"ry": +40})   #左右扯
+    # G2.OFFSET({"ry": -40})     
+  
+
+    # G2.GRIPPER({"right": -0.5})  
+    # G2.OFFSET({"rz": -5})  
+    # G2.GRIPPER({"right": -0.7})
+    # G2.OFFSET({"rx": -180})
+    # G2.WBC("xx")
+
+    
+    G2.GO_NOWAIT(2)
+    G2.WBC("A3")    
 
 if 2>3 :
     G2.GO_NOWAIT(10)

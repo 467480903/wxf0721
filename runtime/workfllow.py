@@ -34,7 +34,6 @@ def tape_detection(roi):
             time.sleep(5)
     playMp3("/PLACE_ENABLE.mp3")
 
-
 def playMp3(mp3):
     # 往 localhost:1883 /playMP3 发送 MP3 播放命令
     _mqtt = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="bbbb_mp3")
@@ -87,7 +86,6 @@ def UpPutBig():
     G2.ARMS("big10")
     G2.ARMS("big11")
 
-    
 def putBig():
     G2.GO(3)
     G2.GO(MAP_POS_PutBig)
@@ -114,6 +112,7 @@ def car_move():
     # 拖小车
     G2.WBC("Wdown2")
     G2.GO(MAP_POS_GetCar)
+    G2.WBC("Wdown2")
     G2.GRIPPER({"left": -0.75, "right": -0.75})
     pt("/data/wxf/wxf0721/runtime/references-tag/reference_id1_id2.json", G2=G2)
     G2.ARMS("car3")
@@ -136,6 +135,7 @@ def get_work():
         G2.GRIPPER({"left": -0.75, "right": -0.75})
         G2.WBC("Wdown2")
         G2.GO(MAP_POS_GetWorkpiece)
+        G2.WBC("Wdown2")
         positioning("/data/wxf/wxf0721/runtime/references-tag/reference_id1_id2.json", G2=G2)
 
         result = 0
@@ -164,8 +164,14 @@ def get_work():
             # G2.TTS("これは小さな部品です；这是小工件")
 
         pose = f'r{i}'
-        G2.ARMS(pose)
-        G2.REL({"x": 0.12}) 
+        if i == 4:
+            G2.WBC("R4")
+            G2.REL({"x": 0.06}) 
+        else:
+            pose = f'r{i}'
+            G2.ARMS(pose)
+            G2.REL({"x": 0.12}) 
+
         G2.GRIPPER({"left": -0.7, "right": -0.4})
         # 在这里纠偏 (AprilTag 36h11, 39mm, 右手腕相机)
         tag_correct(f"/data/wxf/wxf0721/runtime/tag_ref/{jj}", G2)
@@ -174,8 +180,10 @@ def get_work():
         # time.sleep(0.5)
         G2.OFFSET({"rz": 10})
         G2.REL({"x": -1}) 
-        G2.ARMS("a3")
-        G2.ARMS("a5")
+        G2.WBC("A3")
+        time.sleep(1)
+        G2.WBC("A3")
+        G2.WBC("A5")
 
         if result == 1:
             put.putBig(G2)
@@ -191,6 +199,7 @@ def get_work():
 def release_car():
     G2.WBC("Wdown2")
     G2.GO(MAP_POS_GetWorkpiece)
+    G2.WBC("Wdown2")
     G2.GRIPPER({"left": -0.75, "right": -0.75})
     pt("/data/wxf/wxf0721/runtime/references-tag/reference_id1_id2.json", G2=G2)#max_rounds:4
     G2.ARMS("car3")
@@ -209,10 +218,11 @@ def release_car():
 
 def main():
     playMp3("START.mp3 ")
+    G2.WBC("Wdown2")
     G2.GO(MAP_POS_Home)
     G2.WBC("Wdown2")
     playMp3("GRAB_OUT.mp3")
-    # car_move()
+    car_move()
     get_work()
     playMp3("EMPTY.mp3")
     release_car()

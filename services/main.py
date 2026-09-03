@@ -128,16 +128,13 @@ def on_message(client, userdata, msg):
         camera.handle_control(payload)
 
     elif topic == common.TOPIC_JOINTS_CONTROL:
-        # 关节运动命令（WBC/arms/head/joint 等）—— 需要 busy/idle 状态保护
-        # 提交到执行器线程，避免长时间动作阻塞 MQTT 循环
+        # 关节运动命令（WBC/arms/head/joint 等）
+        # 提交到单线程执行器串行执行：busy 时新命令排队等待而不是拒绝
         cmd = payload.get("command")
         print(f"\n[命令] joints/control: {cmd}")
-        if common.get_state() == "busy":
-            print(f"[命令] 有命令正在执行，拒绝: {cmd}")
-            return
-        common.set_state("busy")
 
         def _run_joints():
+            common.set_state("busy")
             try:
                 joints.handle_control(payload)
             except Exception as e:

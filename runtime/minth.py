@@ -32,6 +32,7 @@ Minth 机器人控制类库
 import json
 import os
 import threading
+import time
 
 import paho.mqtt.client as mqtt
 
@@ -74,6 +75,7 @@ class _RobotBase:
         self.port = port
         self.timeout = timeout
         self._done_event = threading.Event()
+        self._done_cmd = None
         self._positions_event = threading.Event()
         self._positions_result = None
         self._connected = False
@@ -105,6 +107,13 @@ class _RobotBase:
 
     def _on_message(self, client, userdata, msg):
         if msg.topic == DONE_TOPIC:
+            try:
+                data = json.loads(msg.payload.decode())
+            except Exception:
+                data = {}
+            # 只接受与当前等待命令匹配的 done（done 消息带 cmd 字段），
+            # 避免快速命令（如 go_nowait）的 done 错误唤醒其他命令的等待
+            self._done_cmd = data.get("cmd", "")
             self._done_event.set()
         elif msg.topic == POSITIONS_DATA_TOPIC:
             try:
@@ -152,12 +161,22 @@ class _RobotBase:
         # 选择目标主题
         topic = JOINTS_TOPIC if cmd in self._JOINT_CMDS else COMMANDS_TOPIC
 
+        self._done_cmd = None
         self._done_event.clear()
         msg_str = json.dumps(payload, ensure_ascii=False)
         self._client.publish(topic, msg_str, qos=2)
         print(f"[Minth] → {cmd}: {data}")
 
-        done = self._done_event.wait(timeout=self.timeout)
+        # 只接受与自己命令匹配的 done，其他命令的 done 忽略后继续等待
+        deadline = time.time() + self.timeout
+        done = False
+        while time.time() < deadline:
+            if self._done_event.wait(timeout=deadline - time.time()):
+                self._done_event.clear()
+                if self._done_cmd == cmd:
+                    done = True
+                    break
+                # 别的命令的 done，忽略
         if done:
             print(f"[Minth] ✓ {cmd} 执行完成")
         else:
@@ -395,13 +414,22 @@ class G2(_RobotBase):
         payload = {"command": "detect", "yolo": model}
         if ip:
             payload["yolo_ip"] = ip
+        self._done_cmd = None
         self._done_event.clear()
         msg_str = json.dumps(payload, ensure_ascii=False)
         self._client.publish(CAMERA_TOPIC, msg_str, qos=2)
         print(f"[Minth] → YOLO: model={model}, ip={ip or 'default'}")
 
-        # YOLO 检测耗时较长，使用较长超时
-        done = self._done_event.wait(timeout=120)
+        # YOLO 检测耗时较长，使用较长超时；
+        # 只接受 cmd="detect" 的 done，忽略其他命令的 done
+        deadline = time.time() + 120
+        done = False
+        while time.time() < deadline:
+            if self._done_event.wait(timeout=deadline - time.time()):
+                self._done_event.clear()
+                if self._done_cmd == "detect":
+                    done = True
+                    break
         if done:
             print(f"[Minth] ✓ YOLO 检测完成")
         else:

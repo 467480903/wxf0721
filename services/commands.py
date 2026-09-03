@@ -382,11 +382,8 @@ def handle_control(payload):
         print(f"[命令] 未知命令: {cmd}，支持: {list(COMMAND_HANDLERS.keys())}")
         return
 
-    # 状态检查：busy 时拒绝新命令
-    if common.get_state() == "busy":
-        print(f"[命令] 有命令正在执行，拒绝: {cmd}")
-        return
-
+    # 本函数运行在单线程执行器上（main.py 提交），命令天然串行排队，
+    # busy 时新命令在队列中等待而不是拒绝
     common.set_state("busy")
     try:
         handler(data, payload)

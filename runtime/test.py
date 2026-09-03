@@ -1,13 +1,10 @@
-"""拍照 → 保存基准位姿和照片 (tag36h11, 1280×800)。
+"""拍照保存位姿照片 (tag36h11, 1280×800)。
 
 用法:
     python test.py --size 97
     python test.py --size 97 --spacing 730        # 给实测值, 精度更高
     python test.py --size 97 --name A             # 命名基准
     python test.py --size 97 --image /path/x.jpg  # 用已有图片, 不拍照
-
-间距不传则自动标定 (单码 PnP 测双码中心欧氏距离)。
-基准存 references/ref_<name>_<时间戳>.json, 并更新软链 reference_<name>.json → 最新。
 """
 
 import os

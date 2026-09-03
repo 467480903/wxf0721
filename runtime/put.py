@@ -23,24 +23,23 @@ def putBig(G2):
     G2.OFFSET({"rz": -80})
     G2.GRIPPER({"right": -0.15})
     G2.OFFSET({"rz": -25})
-    G2.OFFSET({"rx": -45})
+    G2.OFFSET({"rx": -45, "ry": +20}) #补偿
     G2.OFFSET({"ry": +45})   #左右扯
     G2.OFFSET({"ry": -45}) 
-
     G2.GRIPPER({"right": -0.74})
     G2.OFFSET({"rz": -49})
     G2.OFFSET({"rx": -120})
-
     G2.ARMS("big11")
     G2.GO(8)
     G2.GO(2)
 
-
 def putSmall(G2):
     G2.WBC("xx")    
     time.sleep(1)
+    # G2.GO(10)
+    # G2.REL_NOWAIT({"x": -1.7 ,"y": -1.7*0.8}) 
+    
     G2.GO(10)
-    time.sleep(1)
     G2.WBC("xx")    
     G2.GO(9)
     G2.ARMS("big1")
@@ -56,6 +55,7 @@ def putSmall(G2):
     G2.OFFSET({"rz": -20})    
     G2.OFFSET({"rz": -30})     
     G2.GRIPPER({"right": -0.3})
+    G2.OFFSET({"rz": -8})     
     G2.OFFSET({"ry": +40})   #左右扯
     G2.OFFSET({"ry": -40})     
   
@@ -69,3 +69,4 @@ def putSmall(G2):
     G2.WBC("xx")
     G2.GO(10)
 
+    # G2.GO(2)
