@@ -266,6 +266,43 @@ def handle_go_rel(data, msg=None):
         print(f"  [底盘] 异常: {e}")
 
 
+def handle_go_nowait(data, msg=None):
+    """导航到指定地图点位（不等待完成，fire-and-forget）
+
+    只发送导航请求后立即返回，不等待启动/到位。
+    data 格式：整数导航点索引，如 9
+    """
+    try:
+        waypoint = int(data)
+    except (TypeError, ValueError):
+        print(f"  [导航] 无效的导航点: {data}")
+        return
+    print(f"  [导航] 导航到点位 {waypoint}（无等待）")
+    try:
+        if not common.nav.go_nowait(waypoint):
+            print(f"  [导航] 导航请求发送失败: {waypoint}")
+    except Exception as e:
+        print(f"  [导航] 异常: {e}")
+
+
+def handle_go_rel_nowait(data, msg=None):
+    """底盘相对运动（不等待完成，fire-and-forget）
+
+    只发送相对移动请求后立即返回，不等待启动/到位。
+    data 格式: {"x": 1, "y": 1, "yaw_rad": 0.1}
+    """
+    dx = float(data.get("x", 0.0))
+    dy = float(data.get("y", 0.0))
+    dz = float(data.get("z", 0.0))
+    yaw_rad = float(data.get("yaw_rad", 0.0))
+    print(f"  [底盘] 相对运动（无等待）: dx={dx}, dy={dy}, dz={dz}, yaw={yaw_rad}")
+    try:
+        if not common.nav.go_rel_nowait(dx=dx, dy=dy, dz=dz, yaw_rad=yaw_rad):
+            print(f"  [底盘] 相对运动请求发送失败")
+    except Exception as e:
+        print(f"  [底盘] 异常: {e}")
+
+
 # ═══════════════════════════════════════════════════════════
 #  PNC 底盘速度控制（前进/后退/原地旋转，带速度参数）
 # ═══════════════════════════════════════════════════════════
@@ -322,6 +359,8 @@ COMMAND_HANDLERS = {
     "cam_head":    handle_cam_head,
     "go":          handle_go,
     "go_rel":      handle_go_rel,
+    "go_nowait":   handle_go_nowait,
+    "go_rel_nowait": handle_go_rel_nowait,
     "pnc_forward": handle_pnc_forward,
     "pnc_rotate":  handle_pnc_rotate,
 }

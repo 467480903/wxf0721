@@ -17,34 +17,38 @@ MAP_POS_PutSmall = 6
 
 G2 = Minth.G2()
 
-def absence_detection(ROI):
+def tape_detection(roi):
     while True:
         img_path = capture_head_color(G2)
         img = cv2.imread(img_path)
+        if img is None:
+            continue
         if img.shape[:2] != (400, 640):
             img = cv2.resize(img, (640, 400))
-        result = analyze_top_workpiece(img,ROI)
+        result = analyze_top_workpiece(img,roi)
         if result == 0:
             break
         else:
-            playMp3()
-            # G2.TTS("ワークが取り除かれるのを待機；等待工件拿开")
+            # playMp3("/PLACE_ENABLE.mp3")
+            G2.TTS("ワークが取り除かれるのを待機；等待工件拿开")
             time.sleep(5)
+    playMp3("/PLACE_ENABLE.mp3")
 
-def playMp3(mp3="/playMP3"):
+
+def playMp3(mp3):
     # 往 localhost:1883 /playMP3 发送 MP3 播放命令
     _mqtt = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="bbbb_mp3")
     _mqtt.connect("localhost", 1883)
     _mqtt.loop_start()
-    _mqtt.publish(mp3, json.dumps({"cmd": "play", "file": "JPCH1.mp3"}), qos=0)
+    _mqtt.publish("/playMP3", json.dumps({"cmd": "play", "file": mp3}), qos=0)
 
 def putA():
     G2.REL({"x": -1.7,"y": -1.7}) 
     G2.GO(MAP_POS_PutSmall)
-    positioning("/data/wxf/wxf0721/runtime/references-tag/ref_id5_id6_dun.json",G2=G2)
+    pt("/data/wxf/wxf0721/runtime/references-tag/ref_id5_id6_dun.json",G2=G2)
     G2.WBC("xx")
 
-    absence_detection((0,215,440,400-215))
+    tape_detection((0,215,440,400-215))
 
     G2.WBC("W2.3")
     G2.WBC("W2")
@@ -75,9 +79,8 @@ def UpPutBig():
     G2.MoveL("big4", {"x": offestX, "y": offestY})
     G2.MoveL("big6", {"x": offestX, "y": offestY})
     G2.GRIPPER({"right": -0.1})
-    # G2.GRIPPER({"right": -0.2})
     G2.MoveL("big7", {"x": offestX, "y": offestY})
-    G2.GRIPPER({"right": -0.4})
+    G2.GRIPPER({"right": -0.2})
     G2.MoveL("big8", {"x": offestX, "y": offestY})
     G2.GRIPPER({"right": -0.7})
     # G2.ARMS("big9")
@@ -88,10 +91,10 @@ def UpPutBig():
 def putBig():
     G2.GO(3)
     G2.GO(MAP_POS_PutBig)
-    positioning("/data/wxf/wxf0721/runtime/references-tag/ref_id3_id4_dun.json",G2=G2)
+    pt("/data/wxf/wxf0721/runtime/references-tag/ref_id3_id4_dun.json",G2=G2)
     G2.WBC("xx")
 
-    absence_detection((305,205,640-305,400-205))
+    tape_detection((305,205,640-305,400-205))
 
     G2.WBC("x2")
     G2.WBC("x3")
@@ -119,8 +122,9 @@ def car_move():
     # G2.OFFSET({"ry": 15, "ly": -15})
     # G2.REL({"x": 0.03}) 
     G2.GRIPPER({"left": 0, "right": 0})
+    G2.JOINT("idx05_body_joint5", value=0.0)
     G2.REL({"y": -1}) 
-    # G2.GO(MAP_POS_GetWorkpiece)
+    G2.GO(MAP_POS_GetWorkpiece)
     G2.GRIPPER({"left": -0.7, "right": -0.7})
     G2.ARMS("car3.1")
     G2.OFFSET({"lx": -200, "rx": -200})
@@ -132,12 +136,14 @@ def get_work():
         G2.GRIPPER({"left": -0.75, "right": -0.75})
         G2.WBC("Wdown2")
         G2.GO(MAP_POS_GetWorkpiece)
-        pt("/data/wxf/wxf0721/runtime/references-tag/reference_id1_id2.json", G2=G2)
+        positioning("/data/wxf/wxf0721/runtime/references-tag/reference_id1_id2.json", G2=G2)
 
         result = 0
         for j in range(3):
             img_path = capture_head_color(G2)
             img = cv2.imread(img_path)
+            if img is None:
+                continue
             if img.shape[:2] != (400, 640):
                 img = cv2.resize(img, (640, 400))
             result = analyze_top_workpiece(img,(0,230,img.shape[1],img.shape[0]-230))
@@ -146,15 +152,15 @@ def get_work():
 
         jj="ref_id11_20260828_152155.json"
         if result == 0:
-            playMp3()
+            playMp3("EMPTY.mp3")
             # G2.TTS("ワークなし；无工件")
             break
         elif result == 1:
-            playMp3()
+            playMp3("BIG.mp3")
             # G2.TTS("これは大きな部品だ；这是大工件")
             jj="ref_id10_20260828_152036.json"
         elif result == 2:
-            playMp3()
+            playMp3("SMALL.mp3")
             # G2.TTS("これは小さな部品です；这是小工件")
 
         pose = f'r{i}'
@@ -171,24 +177,15 @@ def get_work():
         G2.ARMS("a3")
         G2.ARMS("a5")
 
-        # G2.ARMS("r1")
-        # for j in range(3):
-        #     img_path = capture_head_color(G2)
-        #     img = cv2.imread(img_path)
-        #     result = analyze_top_workpiece(img)
-        #     if result != 0:
-        #         break
-
         if result == 1:
             put.putBig(G2)
         elif result == 2:
             put.putSmall(G2)
         else:
-            playMp3()
-            # G2.TTS("ワークなし；无工件")
+            playMp3("EMPTY.mp3")
             break
         
-        G2.ARMS("AWait")
+        # G2.ARMS("AWait")
         # G2.REL({"x": -0.5})   
 
 def release_car():
@@ -202,6 +199,7 @@ def release_car():
     # G2.OFFSET({"ry": 15, "ly": -15})
     # G2.REL({"x": 0.03}) 
     G2.GRIPPER({"left": 0, "right": 0})
+    G2.JOINT("idx05_body_joint5", value=0.0)
     G2.REL({"y": 1}) 
     # G2.GO(MAP_POS_GetCar)
     G2.GRIPPER({"left": -0.7, "right": -0.7})
@@ -210,19 +208,17 @@ def release_car():
     # G2.REL({"x": -0.5}) 
 
 def main():
-    playMp3()
-    # G2.TTS("大家好，我将进行焊装工位的上件和更换台车演示，我将把台车拉到夹具旁边。")
+    playMp3("START.mp3 ")
     G2.GO(MAP_POS_Home)
     G2.WBC("Wdown2")
-    car_move()
+    playMp3("GRAB_OUT.mp3")
+    # car_move()
     get_work()
+    playMp3("EMPTY.mp3")
     release_car()
     G2.WBC("Wdown2")
     G2.GO(MAP_POS_Home)
-    playMp3()
-    # G2.TTS("整体的展示完成了，谢谢参观。ご覧いただきありがとうございました。")
     G2.close()
 
 if __name__ == "__main__":
     main()
-    # UpPutBig()

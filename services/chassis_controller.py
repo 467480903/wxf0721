@@ -637,6 +637,115 @@ class RobotController:
         self._cancel_navi()
         return False
 
+    # ── 无等待版本（fire-and-forget）──────────────
+
+    def navi_to_pose_nowait(self, req, name: str, relative: bool = False) -> bool:
+        """发送导航请求后立即返回（fire-and-forget）
+
+        不等待启动、不做到位判断、不等待完成。
+        go_nowait（地图点位导航）与 go_rel_nowait（相对运动）共用。
+
+        Parameters
+        ----------
+        req : agibot_gdk.NaviReq
+            已构建好的导航请求
+        name : str
+            显示用名称
+        relative : bool
+            True=相对运动（relative_move），False=普通导航（normal_navi）
+
+        Returns
+        -------
+        bool : True=请求已成功发出，False=发送失败
+        """
+        # 取消旧任务
+        state, _, _ = self._task_state()
+        if state not in _DONE and state != 0:
+            self._log("   取消旧任务...")
+            self._cancel_navi()
+
+        self._log(f"\n🚀 导航请求: '{name}' (无等待模式)")
+
+        try:
+            if relative:
+                self.pnc.relative_move(req)
+            else:
+                self.pnc.normal_navi(req)
+        except Exception as e:
+            self._log(f"❌ 发送失败: {e}")
+            return False
+
+        self._log("   请求已发出，不等待完成")
+        return True
+
+    def go_nowait(self, waypoint: Union[int, str]) -> bool:
+        """导航到指定导航点（不等待完成）
+
+        只发送导航请求后立即返回，不等待启动/到位。
+
+        Parameters
+        ----------
+        waypoint : int 或 str
+            导航点索引或名称
+
+        Returns
+        -------
+        bool : True=请求已发出，False=失败
+        """
+        name = self._resolve_wp(waypoint)
+        if name is None:
+            self._log(f"❌ 找不到导航点: '{waypoint}'")
+            return False
+
+        wp  = self.waypoints[name]
+        pos = wp["position"]
+        ori = wp["orientation"]
+
+        req = agibot_gdk.NaviReq()
+        req.target.position.x    = pos[0]
+        req.target.position.y    = pos[1]
+        req.target.position.z    = pos[2]
+        req.target.orientation.x = ori[0]
+        req.target.orientation.y = ori[1]
+        req.target.orientation.z = ori[2]
+        req.target.orientation.w = ori[3]
+
+        return self.navi_to_pose_nowait(req, name)
+
+    def go_rel_nowait(self,
+                      dx: float = 0.0,
+                      dy: float = 0.0,
+                      dz: float = 0.0,
+                      yaw_rad: float = 0.0) -> bool:
+        """相对运动（不等待完成）
+
+        只发送相对移动请求后立即返回，不等待启动/到位。
+
+        Returns
+        -------
+        bool : True=请求已发出，False=失败
+        """
+        # 无位移无旋转，直接返回
+        if abs(dx) < 0.001 and abs(dy) < 0.001 and abs(dz) < 0.001 \
+                and abs(yaw_rad) < 0.001:
+            return True
+
+        # yaw（绕 z 轴）转四元数：q = (0, 0, sin(yaw/2), cos(yaw/2))
+        half = yaw_rad / 2.0
+        qz = math.sin(half)
+        qw = math.cos(half)
+
+        req = agibot_gdk.NaviReq()
+        req.target.position.x    = dx
+        req.target.position.y    = dy
+        req.target.position.z    = dz
+        req.target.orientation.x = 0.0
+        req.target.orientation.y = 0.0
+        req.target.orientation.z = qz
+        req.target.orientation.w = qw
+
+        return self.navi_to_pose_nowait(req, "rel_move", relative=True)
+
     # ── 公开接口：底盘运动 ────────────────────────
 
     def crab_walk(self,

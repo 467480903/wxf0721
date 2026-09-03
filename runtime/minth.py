@@ -194,7 +194,8 @@ class G2(_RobotBase):
     def GO_NOWAIT(self, num):
         """导航到指定地图点位（异步，不等待执行完成）
 
-        命令下发后立即返回，不等待 /humanoid/commands/done 回复。
+        后端使用 go_nowait 命令：只发送导航请求立即返回，
+        不等待启动、不做到位判断、不等待完成。
         适用于 fire-and-forget 场景。
 
         Args:
@@ -202,7 +203,7 @@ class G2(_RobotBase):
         Returns:
             bool: True=命令已成功下发，False=发送失败
         """
-        payload = {"command": "go", "data": num}
+        payload = {"command": "go_nowait", "data": num}
         msg_str = json.dumps(payload, ensure_ascii=False)
         info = self._client.publish(COMMANDS_TOPIC, msg_str, qos=2)
         ok = getattr(info, "rc", 0) == 0
@@ -339,7 +340,8 @@ class G2(_RobotBase):
     def REL_NOWAIT(self, data):
         """底盘相对运动（异步，不等待执行完成）
 
-        命令下发后立即返回，不等待 /humanoid/commands/done 回复。
+        后端使用 go_rel_nowait 命令：只发送相对移动请求立即返回，
+        不等待启动、不做到位判断、不等待完成。
         适用于 fire-and-forget 场景，例如 CHASSIS_CORRECT 纠偏后
         立即返回继续后续逻辑。
 
@@ -348,7 +350,7 @@ class G2(_RobotBase):
         Returns:
             bool: True=命令已成功下发，False=发送失败
         """
-        payload = {"command": "go_rel", "data": data}
+        payload = {"command": "go_rel_nowait", "data": data}
         msg_str = json.dumps(payload, ensure_ascii=False)
         info = self._client.publish(COMMANDS_TOPIC, msg_str, qos=2)
         ok = getattr(info, "rc", 0) == 0

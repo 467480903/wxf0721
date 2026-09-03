@@ -4,6 +4,7 @@ from capture import capture_head_color
 from positioning import positioning as pt
 
 G2 = Minth.G2()
+# positioning("/data/wxf/wxf0721/runtime/references-tag/ref_id3_id4_20260901_133511.json",G2=G2)
 # img_path = capture_head_color(G2)
 # print(img_path)
 # G2.REL({"y": 0.5}) 
@@ -11,7 +12,7 @@ G2 = Minth.G2()
 # G2.GO(4)
 # stref="/data/wxf/wxf0721/runtime/references-tag/ref_id3_id4_20260901_133511.json"
 # stref="/data/wxf/wxf0721/runtime/references-tag/ref_id5_id6_dun.json"
-# pt(stref,G2=G2,max_rounds=0)
+pt("/data/wxf/wxf0721/runtime/references-tag/ref_id3_id4_20260901_133511.json",G2=G2,max_rounds=9)
 
 
 # G2.GRIPPER({"left": -0.7, "right": -0.4})

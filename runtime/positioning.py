@@ -5,7 +5,6 @@
   最后一轮纠偏后不再拍照验证
   max_rounds=0: 只拍照解算写残余误差 JSON, 不纠偏
 
-容差: 旋转 ±2.5°, 平移 ±10mm。
 增益: GAIN_X/GAIN_Y 补偿实际移动与指令的偏差 (x 实测 ~93%)。
 安全: |dt|>500mm 或 |dyaw|>45° 时等用户确认; reproj>2.0px 不执行。
 G2.REL 坐标系: x 前进(朝墙), y 左移, yaw_rad 逆时针。
@@ -36,13 +35,18 @@ DEFAULT_REF_JSON = os.path.join(BASE_DIR, "references-tag", "reference_latest.js
 RESIDUAL_JSON = os.path.join(BASE_DIR, "positioning_residual.json")
 
 # ============ 容差 ============
-YAW_TOL_DEG = 1.3          # 旋转容差
-TRANS_TOL_MM = 10.0        # 平移容差
+YAW_TOL_DEG = 0.8          # 旋转容差
+TRANS_TOL_MM = 5.0        # 平移容差
 FAIL_REPROJ_ERR_PX = 1.5   # 重投影超此值不执行
 
 # ============ 纠偏增益 (补偿实际移动量与指令的偏差) ============
 GAIN_X = 1.1               # x 实测效率 ~93%, 放大指令
 GAIN_Y = 1.0               # y 实测 ~112%, 暂不补偿
+
+# ============ 底盘死区补偿 ============
+CHASSIS_MIN_MM = 15.0      # 底盘最小可执行位移, 小于此值跑不动
+BACKLASH_MM = 30.0         # 小位移时先反向预跑量, 再正向跑 BACKLASH+目标
+YAW_BACKLASH_DEG = 3.0     # |dyaw|<此值且xy死区补偿时, 旋转也加死区补偿
 
 # ============ 安全约束 ============
 CONFIRM_LARGE_MOVE = True
@@ -107,11 +111,31 @@ def take_photo_and_solve(G2, step, phase, ref_path):
     }
 
 
-def step_move(G2, ref_path, step):
-    """拍照 → 解算 → 已收敛则标记, 否则旋转+平移同步纠偏。返回 (r, converged)。"""
+def split_chassis_move(move_x, move_y):
+    """底盘死区补偿: 某轴 0<|v|<CHASSIS_MIN_MM 时底盘跑不动,
+    先反向跑 BACKLASH_MM, 再正向跑 BACKLASH_MM+|v| (净位移=v)。
+    返回 (seg1, seg2); seg2=None 表示无需分段。"""
+    seg1 = [move_x, move_y]
+    seg2 = None
+    for i, v in enumerate((move_x, move_y)):
+        if 0.0 < abs(v) < CHASSIS_MIN_MM / 1000.0:
+            if seg2 is None:
+                seg2 = [0.0, 0.0]
+            back = -np.copysign(BACKLASH_MM / 1000.0, v)
+            seg1[i] = back
+            seg2[i] = v - back   # = v + 30mm*sign(v)
+    return seg1, seg2
+
+
+def step_move(G2, ref_path, step, max_rounds, waist_used, trans_converged):
+    """拍照 → 解算 → 已收敛则标记, 否则纠偏。返回 (r, converged, waist_used, trans_converged)。
+
+    腰部时机: xy在容差内(或曾收敛)且yaw超差 → 只动腰底盘不动; 后续yaw仍超差 → 继续动腰。
+    底盘: xy超差(且未收敛过) → 旋转+平移同步; xy死区补偿时若|dyaw|<3°, 旋转也加死区补偿。
+    trans_converged: xy平移曾进入容差, 后续不再动底盘平移 (避免检测误差导致来回移动)。"""
     r = take_photo_and_solve(G2, step, "纠偏", ref_path)
     if r is None:
-        return None, False
+        return None, False, waist_used, trans_converged
 
     dt = r["dt"]
     dyaw = r["dyaw_deg"]
@@ -119,40 +143,89 @@ def step_move(G2, ref_path, step):
     yaw_ok = abs(dyaw) <= YAW_TOL_DEG
     trans_ok = dist <= TRANS_TOL_MM
 
-    if yaw_ok and trans_ok:
+    # xy曾收敛或本次在容差内 → 锁定, 不再动底盘平移
+    if trans_ok:
+        trans_converged = True
+
+    if yaw_ok and trans_converged:
         print(f"  ✓ 已收敛: |dyaw|={abs(dyaw):.2f}° ≤ {YAW_TOL_DEG}°, |位移|={dist:.1f}mm ≤ {TRANS_TOL_MM}mm")
-        return r, True
+        return r, True, waist_used, trans_converged
 
     # 平移: dt[0]>0 远离墙 → 后退; dt[1]>0 偏左 → 右移; 乘增益补偿欠移
     move_x = -dt[0] / 1000.0 * GAIN_X
     move_y = -dt[1] / 1000.0 * GAIN_Y
 
-    if step == 1:
-        # 第1次: 旋转+平移同步走底盘 (dyaw>0 左转残差 → 右转, yaw_cmd 负)
-        yaw_cmd = -np.radians(dyaw)
-        print(f"  [纠偏-底盘] yaw={np.degrees(yaw_cmd):+.2f}°, x={move_x:+.4f}m, y={move_y:+.4f}m")
-        if not confirm_large_move(move_x, move_y, dyaw):
-            print("  [跳过] 用户未确认")
-            return r, False
-        if not G2.REL({"x": move_x, "y": move_y, "yaw_rad": yaw_cmd}):
-            print("[错误] 纠偏失败")
-            return None, False
-    else:
-        # 后续: 旋转走腰部 (offset 负=逆时针/左转, 故右转纠偏=负), 平移走底盘
+    # 腰部时机: yaw超差 且 (xy曾收敛 或 腰部已用过)
+    # xy收敛后只动腰, 转底盘会影响xy
+    use_waist = (not yaw_ok) and (trans_converged or waist_used)
+
+    # 是否需要底盘平移: xy超差 且 未曾收敛
+    need_chassis_trans = (not trans_ok) and (not trans_converged)
+
+    if use_waist:
+        # 腰部纯转 yaw, xy在容差内/曾收敛则底盘完全不动
         waist_offset = -np.radians(dyaw)
-        print(f"  [纠偏-腰部] offset={waist_offset:+.4f}rad ({dyaw:+.2f}°), "
-              f"x={move_x:+.4f}m, y={move_y:+.4f}m")
+        print(f"  [纠偏-腰部] offset={waist_offset:+.4f}rad ({dyaw:+.2f}°)")
         if not confirm_large_move(move_x, move_y, dyaw):
             print("  [跳过] 用户未确认")
-            return r, False
+            return r, False, waist_used, trans_converged
         if not G2.JOINT("idx05_body_joint5", offset=waist_offset):
             print("[错误] 腰部纠偏失败")
-            return None, False
-        if not G2.REL({"x": move_x, "y": move_y}):
+            return None, False, waist_used, trans_converged
+        waist_used = True
+        # xy超差且未曾收敛才平移
+        if need_chassis_trans:
+            seg1, seg2 = split_chassis_move(move_x, move_y)
+            if seg2:
+                print(f"  [死区补偿] 先反向 x={seg1[0]:+.3f}m y={seg1[1]:+.3f}m, "
+                      f"再正向 x={seg2[0]:+.3f}m y={seg2[1]:+.3f}m")
+            if not G2.REL({"x": seg1[0], "y": seg1[1]}):
+                print("[错误] 纠偏失败")
+                return None, False, waist_used, trans_converged
+            if seg2 and not G2.REL({"x": seg2[0], "y": seg2[1]}):
+                print("[错误] 死区补偿第二段失败")
+                return None, False, waist_used, trans_converged
+    else:
+        # 底盘: 旋转+平移同步 (dyaw>0 左转残差 → 右转, yaw_cmd 负)
+        yaw_cmd = -np.radians(dyaw)
+
+        if need_chassis_trans:
+            seg1, seg2 = split_chassis_move(move_x, move_y)
+        else:
+            seg1, seg2 = [0.0, 0.0], None  # 只转不平移
+
+        # xy死区补偿时, |dyaw|<3° 也加旋转死区补偿
+        if seg2 is not None and abs(dyaw) < YAW_BACKLASH_DEG:
+            yaw_back = -np.copysign(np.radians(YAW_BACKLASH_DEG), yaw_cmd)
+            seg1_yaw = yaw_back
+            seg2_yaw = yaw_cmd - yaw_back
+            print(f"  [纠偏-底盘] yaw=±{YAW_BACKLASH_DEG}°→{np.degrees(yaw_cmd):+.2f}° (旋转死区补偿), "
+                  f"x={move_x:+.4f}m, y={move_y:+.4f}m" + (" [平移锁定]" if not need_chassis_trans else ""))
+        else:
+            seg1_yaw = yaw_cmd
+            seg2_yaw = None
+            print(f"  [纠偏-底盘] yaw={np.degrees(yaw_cmd):+.2f}°, x={move_x:+.4f}m, y={move_y:+.4f}m"
+                  + (" [平移锁定]" if not need_chassis_trans else ""))
+
+        if seg2:
+            print(f"  [死区补偿] 先反向 x={seg1[0]:+.3f}m y={seg1[1]:+.3f}m yaw={np.degrees(seg1_yaw):+.1f}°, "
+                  f"再正向 x={seg2[0]:+.3f}m y={seg2[1]:+.3f}m"
+                  + (f" yaw={np.degrees(seg2_yaw):+.1f}°" if seg2_yaw is not None else "") + ")")
+        if not confirm_large_move(move_x, move_y, dyaw):
+            print("  [跳过] 用户未确认")
+            return r, False, waist_used, trans_converged
+        if not G2.REL({"x": seg1[0], "y": seg1[1], "yaw_rad": seg1_yaw}):
             print("[错误] 纠偏失败")
-            return None, False
+            return None, False, waist_used, trans_converged
+        if seg2:
+            cmd = {"x": seg2[0], "y": seg2[1]}
+            if seg2_yaw is not None:
+                cmd["yaw_rad"] = seg2_yaw
+            if not G2.REL(cmd):
+                print("[错误] 死区补偿第二段失败")
+                return None, False, waist_used, trans_converged
     time.sleep(0.5)
-    return r, False
+    return r, False, waist_used, trans_converged
 
 
 def write_residual(r, ref_path, converged):
@@ -216,9 +289,12 @@ def positioning(ref_path, G2=None, max_rounds=MAX_ROUNDS):
             return results
 
         print(f"=== 开始纠偏 (最多 {max_rounds} 次拍照) ===")
+        waist_used = False
+        trans_converged = False
         for i in range(1, max_rounds + 1):
             print(f"\n━━━ 第 {i}/{max_rounds} 次拍照 ━━━")
-            r, converged = step_move(G2, ref_path, i)
+            r, converged, waist_used, trans_converged = step_move(
+                G2, ref_path, i, max_rounds, waist_used, trans_converged)
             results.append(r)
             if r is None:
                 break
