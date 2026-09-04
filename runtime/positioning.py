@@ -35,8 +35,8 @@ DEFAULT_REF_JSON = os.path.join(BASE_DIR, "references-tag", "reference_latest.js
 RESIDUAL_JSON = os.path.join(BASE_DIR, "positioning_residual.json")
 
 # ============ 容差 ============
-YAW_TOL_DEG = 0.8          # 旋转容差
-TRANS_TOL_MM = 5.0        # 平移容差
+YAW_TOL_DEG = 1          # 旋转容差
+TRANS_TOL_MM = 8.0        # 平移容差
 FAIL_REPROJ_ERR_PX = 1.5   # 重投影超此值不执行
 
 # ============ 纠偏增益 (补偿实际移动量与指令的偏差) ============

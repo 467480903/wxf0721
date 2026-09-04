@@ -29,8 +29,8 @@ def tape_detection(roi):
         if result == 0:
             break
         else:
-            # playMp3("/PLACE_ENABLE.mp3")
-            G2.TTS("ワークが取り除かれるのを待機；等待工件拿开")
+            playMp3("PRODUCT_UNTAKEN.mp3")
+            # G2.TTS("ワークが取り除かれるのを待機；等待工件拿开")
             time.sleep(5)
     playMp3("/PLACE_ENABLE.mp3")
 
@@ -152,15 +152,14 @@ def get_work():
 
         jj="ref_id11_20260828_152155.json"
         if result == 0:
-            playMp3("EMPTY.mp3")
             # G2.TTS("ワークなし；无工件")
             break
         elif result == 1:
-            playMp3("BIG.mp3")
+            playMp3("BIG_0904.mp3")
             # G2.TTS("これは大きな部品だ；这是大工件")
             jj="ref_id10_20260828_152036.json"
         elif result == 2:
-            playMp3("SMALL.mp3")
+            playMp3("SMALL_0904.mp3")
             # G2.TTS("これは小さな部品です；这是小工件")
 
         pose = f'r{i}'
@@ -173,12 +172,11 @@ def get_work():
             G2.REL({"x": 0.12}) 
 
         G2.GRIPPER({"left": -0.7, "right": -0.4})
-        # 在这里纠偏 (AprilTag 36h11, 39mm, 右手腕相机)
         tag_correct(f"/data/wxf/wxf0721/runtime/tag_ref/{jj}", G2)
         G2.OFFSET({"rz": 20})
         G2.GRIPPER({"left": -0, "right": -0})
         # time.sleep(0.5)
-        G2.OFFSET({"rz": 10})
+        G2.OFFSET({"rz": 20})
         G2.REL({"x": -1}) 
         G2.WBC("A3")
         time.sleep(1)
@@ -186,22 +184,22 @@ def get_work():
         G2.WBC("A5")
 
         if result == 1:
-            put.putBig(G2)
+            put.putBig(G2, befo_place=lambda: tape_detection((290,168,287,250)))
         elif result == 2:
-            put.putSmall(G2)
+            put.putSmall(G2, befo_place=lambda: tape_detection((226,188,241,112)))
         else:
-            playMp3("EMPTY.mp3")
             break
         
         # G2.ARMS("AWait")
         # G2.REL({"x": -0.5})   
+
 
 def release_car():
     G2.WBC("Wdown2")
     G2.GO(MAP_POS_GetWorkpiece)
     G2.WBC("Wdown2")
     G2.GRIPPER({"left": -0.75, "right": -0.75})
-    pt("/data/wxf/wxf0721/runtime/references-tag/reference_id1_id2.json", G2=G2)#max_rounds:4
+    pt("/data/wxf/wxf0721/runtime/references-tag/reference_id1_id2.json", G2=G2,max_rounds=2)#max_rounds:4
     G2.ARMS("car3")
     G2.ARMS("car3.1")
     G2.ARMS("car5")
@@ -217,14 +215,13 @@ def release_car():
     # G2.REL({"x": -0.5}) 
 
 def main():
-    playMp3("START.mp3 ")
+    playMp3("START.mp3")
     G2.WBC("Wdown2")
     G2.GO(MAP_POS_Home)
     G2.WBC("Wdown2")
-    playMp3("GRAB_OUT.mp3")
     car_move()
     get_work()
-    playMp3("EMPTY.mp3")
+    playMp3("ALL_DONE.mp3")
     release_car()
     G2.WBC("Wdown2")
     G2.GO(MAP_POS_Home)
